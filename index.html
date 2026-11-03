@@ -138,6 +138,25 @@ table.log th{font-weight:600;color:var(--ink-2)}
 .data p{color:var(--ink-2);margin:6px 0}
 .row{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;align-items:center}
 
+/* per-item timer */
+.timer{display:flex;align-items:center;gap:7px;margin-top:7px;font-size:13px;color:var(--ink-3)}
+.timer button{font:inherit;font-size:12px;display:inline-flex;align-items:center;gap:5px;background:var(--surface);color:var(--ink-2);border:1px solid var(--rule);border-radius:999px;padding:3px 11px;cursor:pointer}
+.timer button:hover:not(:disabled){border-color:var(--ink-3);color:var(--ink)}
+.timer button:disabled{opacity:.45;cursor:not-allowed}
+.timer button b{width:0;height:0;border-style:solid;border-width:4.5px 0 4.5px 7px;border-color:transparent transparent transparent currentColor}
+.timer.on button{background:var(--ok);border-color:var(--ok);color:#fff}
+.timer.on button b{border-width:0;width:7px;height:9px;border-left:3px solid currentColor;border-right:3px solid currentColor}
+.timer input{font:inherit;font-size:13px;width:58px;text-align:right;color:var(--ink-2);background:var(--paper);border:1px solid var(--rule);border-radius:6px;padding:2px 5px}
+.timer input:disabled{opacity:.6}
+.timer input::-webkit-outer-spin-button,.timer input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.timer .live{color:var(--ok);font-variant-numeric:tabular-nums}
+.timer.on .live::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ok);margin-right:5px;animation:pulse 1.4s infinite}
+.tracked{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin:2px 0 8px;font-size:14px}
+.tracked b{font-family:var(--serif);font-weight:400;font-size:19px;font-variant-numeric:tabular-nums}
+.tracked.on b{color:var(--ok)}
+.hint{font-size:12px;color:var(--ink-3);margin:4px 0 0}
+.hint button{font:inherit;font-size:12px;background:none;border:0;padding:0;color:var(--accent);text-decoration:underline;cursor:pointer}
+
 /* sync */
 .sync{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-2);border:1px solid var(--rule);background:var(--surface);border-radius:999px;padding:3px 10px;cursor:pointer;font-family:inherit;margin-top:6px}
 .sync:hover{border-color:var(--ink-3)}
@@ -663,7 +682,7 @@ const fmtDate = (k, opt={weekday:'long', day:'numeric', month:'long', year:'nume
 const fmtTime = ts => new Date(ts).toLocaleString('en-GB', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
 
 let memStore = null;
-const baseState = () => ({v:1, checks:{}, notes:{}, hours:{}, metrics:{}, metricLog:[], log:[], touch:{}, maxSeen:0, theme:'auto', created:Date.now()});
+const baseState = () => ({v:1, checks:{}, notes:{}, hours:{}, metrics:{}, metricLog:[], log:[], timeLog:[], touch:{}, maxSeen:0, theme:'auto', created:Date.now()});
 function loadState() {
   let raw = null;
   try { raw = localStorage.getItem(STORE); } catch (e) { raw = memStore; }
@@ -715,8 +734,109 @@ function tally() {
     const s = dayStatus(PLAN[i], tk);
     if (s === 'ontime') streak++; else if (PLAN[i].key === tk && (s === 'open' || s === 'progress')) continue; else break;
   }
-  const hours = Object.values(S.hours).reduce((a, h) => a + (+h || 0), 0);
+  const hours = PLAN.reduce((a, d) => a + dayHours(d.key), 0);
   return {...r, streak, hours};
+}
+
+/* ===== Time spent on each item =====
+   Time is kept as a list of worked segments rather than one running total, so
+   two devices that both tracked something while offline keep both stretches
+   instead of one total overwriting the other. Typing a figure in by hand adds
+   a `set` entry, which wins over everything before it and lets later segments
+   carry on adding from there. */
+
+let timeIdx = null;
+const invalidateTime = () => { timeIdx = null; };
+
+function timeIndex() {
+  if (timeIdx) return timeIdx;
+  const base = {}, sum = {};
+  (S.timeLog || []).forEach(e => {
+    if (e.set === undefined) return;
+    const k = e.day + '|' + e.id;
+    if (!base[k] || e.t >= base[k].t) base[k] = {t:e.t, v:e.set};
+  });
+  (S.timeLog || []).forEach(e => {
+    if (e.set !== undefined || !e.s) return;
+    const k = e.day + '|' + e.id;
+    if (!base[k] || e.t > base[k].t) sum[k] = (sum[k] || 0) + e.s; // segments before a hand-typed figure are superseded
+  });
+  timeIdx = {};
+  new Set([...Object.keys(base), ...Object.keys(sum)]).forEach(k =>
+    timeIdx[k] = Math.max(0, Math.round((base[k] ? base[k].v : 0) + (sum[k] || 0))));
+  return timeIdx;
+}
+// A running item reads live: the segment holds what has been banked so far,
+// and `since` is moved forward as it is banked, so the two never overlap.
+const taskSecs = (dayKey, id) => {
+  const v = timeIndex()[dayKey + '|' + id] || 0;
+  const r = S.running;
+  return v + (r && r.day === dayKey && r.id === id ? Math.max(0, Math.floor((nowTs() - r.since) / 1000)) : 0);
+};
+const dayTracked = dayKey => (BY_KEY[dayKey] ? BY_KEY[dayKey].todos : []).reduce((a, t) => a + taskSecs(dayKey, t.id), 0);
+
+// A typed figure in "Hours actually worked" overrides the clock for that day.
+function dayHours(dayKey) {
+  const manual = S.hours[dayKey];
+  if (manual !== undefined && manual !== '') return +manual || 0;
+  return dayTracked(dayKey) / 3600;
+}
+function fmtDur(secs) {
+  if (secs < 60) return secs + ' sec';
+  const m = Math.round(secs / 60);
+  return m < 60 ? m + ' min' : Math.floor(m / 60) + ' h ' + String(m % 60).padStart(2, '0') + ' min';
+}
+
+/* One timer at a time, so the same minute is never counted against two items. */
+function startTimer(dayKey, id) {
+  if (dayKey > todayKey()) return toast('This day hasn’t started yet.');
+  if (S.running) {
+    const was = S.running.id === id && S.running.day === dayKey;
+    stopTimer(true);
+    if (was) { persist(); render(); return; } // tapping the running item pauses it
+  }
+  const t = nowTs();
+  S.timeLog.push({t, day:dayKey, id, s:0});
+  S.running = {day:dayKey, id, since:t, t};
+  invalidateTime(); persist(); render();
+}
+// Fold the time so far into the open segment, so a crash or a closed lid costs nothing.
+function holdTimer() {
+  const r = S.running; if (!r) return null;
+  const e = S.timeLog.find(x => x.t === r.t && x.day === r.day && x.id === r.id);
+  if (!e) { S.running = null; invalidateTime(); return null; }
+  const gained = Math.max(0, Math.floor((nowTs() - r.since) / 1000));
+  if (gained) { e.s = (e.s || 0) + gained; r.since += gained * 1000; invalidateTime(); }
+  return e;
+}
+function stopTimer(quiet) {
+  const r = S.running; if (!r) return;
+  const e = holdTimer();
+  const secs = e ? e.s : 0;
+  if (e && secs < 2) S.timeLog.splice(S.timeLog.indexOf(e), 1); // discard a mis-tap
+  S.running = null; invalidateTime();
+  if (!quiet) {
+    persist(); render();
+    if (secs >= 2) toast(`Paused. ${fmtDur(secs)} added to this item.`);
+  }
+}
+/* A timer left running when the page was closed is settled at the last figure
+   written to disk, never at the wall-clock gap since — otherwise closing the
+   lid overnight would bank eight hours against whatever was open. */
+function settleTimerFromLastSession() {
+  const r = S.running; if (!r) return;
+  const e = S.timeLog.find(x => x.t === r.t && x.day === r.day && x.id === r.id);
+  S.running = null;
+  if (e && e.s < 2) S.timeLog.splice(S.timeLog.indexOf(e), 1);
+  invalidateTime(); writeLocal();
+  if (e && e.s >= 2) setTimeout(() => toast(`A timer was still running when you left. Stopped at ${fmtDur(e.s)}.`), 600);
+}
+function setTaskMinutes(dayKey, id, mins) {
+  const secs = Math.max(0, Math.round((+mins || 0) * 60));
+  if (secs === taskSecs(dayKey, id)) return;
+  if (S.running && S.running.day === dayKey && S.running.id === id) stopTimer(true);
+  S.timeLog.push({t:nowTs(), day:dayKey, id, set:secs});
+  invalidateTime(); persist(); render();
 }
 
 /* ----- actions ----- */
@@ -799,9 +919,19 @@ function renderDay(day, tk) {
       ${t.d ? `<div class="det">${esc(t.d)}</div>` : ''}
       ${t.depth ? `<div class="depth"><b>Depth:</b> ${esc(t.depth)}</div>` : ''}
       ${t.l && t.l.length ? `<div class="links">${t.l.map(([n,u]) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(n)}</a>`).join('')}</div>` : ''}
-      ${ts ? `<div class="stamp${late ? ' late' : ''}">${late ? 'Done late' : 'Done'}: ${fmtTime(ts)}</div>` : ''}</div></div>`;
+      ${t.tag === 'rest' || t.tag === 'checkpoint' ? '' : (() => {
+        const run = S.running && S.running.day === day.key && S.running.id === t.id;
+        const secs = taskSecs(day.key, t.id);
+        return `<div class="timer${run ? ' on' : ''}">
+          <button data-timer="${t.id}" ${locked ? 'disabled' : ''} title="${run ? 'Pause the clock on this item' : 'Start the clock on this item'}"><b></b>${run ? 'Pause' : 'Start'}</button>
+          <input type="number" min="0" step="1" data-setmin="${t.id}" value="${Math.round(secs / 60)}" ${run || locked ? 'disabled' : ''} aria-label="Minutes worked on ${esc(t.t)}" title="Minutes worked. Type to correct it.">
+          <span>min</span>
+          ${run ? `<span class="live" data-dur="${t.id}">${fmtDur(secs)}</span>` : ''}</div>`;
+      })()}</div></div>`;
   }).join('') + '</section>').join('');
   const T = tally();
+  const tracked = dayTracked(day.key), running = !!S.running && S.running.day === day.key;
+  const override = S.hours[day.key] !== undefined && S.hours[day.key] !== '';
   const repro = [...REPROS].reverse().find(r => day.key >= r.from);
   return `<div class="layout"><div>
     <div class="dayhead"><div><h1>${fmtDate(day.key)}</h1>
@@ -813,7 +943,10 @@ function renderDay(day, tk) {
         <div class="stats"><span>Required items</span><span>${done} / ${req.length}</span><span>Planned time</span><span>${Math.floor(mins/60)} h ${mins%60} min</span></div>
         <div class="bar"><i style="width:${req.length ? done/req.length*100 : 0}%"></i></div>
         <p class="muted">A day counts as on time when every required item is checked before 0${GRACE_H}:00 the next morning.</p>
-        <label>Hours actually worked<input type="number" min="0" max="16" step="0.25" id="hours" value="${esc(S.hours[day.key] ?? '')}" ${locked ? 'disabled' : ''}></label></div>
+        <div class="tracked${running ? ' on' : ''}"><span>Hours actually worked</span><b id="trackedTotal">${tracked ? fmtDur(tracked) : '—'}</b></div>
+        <p class="hint">${running ? 'A timer is running.' : 'Added up from the clocks on each item.'}
+          ${override ? `Overridden to ${esc(S.hours[day.key])} h. <button data-act="usetracked">Use the tracked total</button>` : 'Type below only to override it.'}</p>
+        <label>Override<input type="number" min="0" max="16" step="0.25" id="hours" placeholder="${(tracked / 3600).toFixed(2)}" value="${esc(S.hours[day.key] ?? '')}" ${locked ? 'disabled' : ''}></label></div>
       <div class="panel"><h3>Notes</h3><textarea id="notes" placeholder="Paper summaries, Zetamac score, what broke, what you learned." ${locked ? 'disabled' : ''}>${esc(S.notes[day.key] || '')}</textarea></div>
       <div class="panel"><h3>So far</h3><div class="stats">
         <span>On-time streak</span><span>${T.streak} days</span><span>On time</span><span>${T.ontime}</span><span>Late</span><span>${T.late}</span><span>Missed or partial</span><span>${T.missed + T.partial}</span><span>Hours logged</span><span>${T.hours.toFixed(1)}</span></div></div>
@@ -899,6 +1032,8 @@ function bind() {
   document.querySelectorAll('[data-todo]').forEach(cb => cb.onchange = () => toggle(selKey, BY_KEY[selKey].todos.find(t => t.id === cb.dataset.todo), cb.checked));
   const notes = $('#notes'); if (notes) notes.oninput = debounce(() => { S.notes[selKey] = notes.value; S.touch['notes:'+selKey] = nowTs(); persist(); }, 500);
   const hours = $('#hours'); if (hours) hours.onchange = () => { S.hours[selKey] = hours.value; S.touch['hours:'+selKey] = nowTs(); persist(); render(); };
+  document.querySelectorAll('[data-timer]').forEach(b => b.onclick = () => startTimer(selKey, b.dataset.timer));
+  document.querySelectorAll('[data-setmin]').forEach(inp => inp.onchange = () => setTaskMinutes(selKey, inp.dataset.setmin, inp.value));
   document.querySelectorAll('[data-metric]').forEach(inp => inp.onchange = () => { S.metrics[inp.dataset.metric] = inp.value; S.metricLog.push({t:nowTs(), id:inp.dataset.metric, v:inp.value}); persist(); render(); });
   document.querySelectorAll('[data-theme-set]').forEach(b => b.onclick = () => { S.theme = b.dataset.themeSet; persist(); render(); });
   document.querySelectorAll('[data-act]').forEach(el => {
@@ -906,7 +1041,8 @@ function bind() {
     if (a === 'import') el.onchange = () => el.files[0] && importFile(el.files[0]);
     else if (el.tagName !== 'A') el.onclick = () => ({link:linkFile, open:openFile, reconnect:reconnect, export:exportMd, reset:resetAll,
       connect:connectSync, disconnect:disconnectSync, syncnow:() => { backoff = 0; syncNow(); },
-      copylink:copySetupLink, qr:() => { showQr = !showQr; render(); }})[a]();
+      copylink:copySetupLink, qr:() => { showQr = !showQr; render(); },
+      usetracked:() => { delete S.hours[selKey]; S.touch['hours:'+selKey] = nowTs(); persist(); render(); }})[a]();
   });
   const tokenField = $('#ghToken');
   if (tokenField) tokenField.onkeydown = e => { if (e.key === 'Enter') connectSync(); };
@@ -924,8 +1060,13 @@ function toMarkdown() {
   PLAN.filter(d => d.key <= tk).forEach(d => {
     const c = S.checks[d.key] || {}, s = dayStatus(d, tk);
     md += `\n### ${d.key} (${fmtDate(d.key,{weekday:'short'})}): ${STATUS_TXT[s]}\n\n`;
-    d.todos.filter(t => t.tag !== 'rest').forEach(t => { const ts = c[t.id]; md += `- [${ts ? 'x' : ' '}] ${t.block}: ${t.t}${ts ? ` (${ts >= deadline(d.key) ? 'late, ' : ''}${fmtTime(ts)})` : ''}${t.req ? '' : ' (optional)'}\n`; });
-    if (S.hours[d.key]) md += `\nHours: ${S.hours[d.key]}\n`;
+    d.todos.filter(t => t.tag !== 'rest').forEach(t => {
+      const ts = c[t.id], secs = taskSecs(d.key, t.id);
+      md += `- [${ts ? 'x' : ' '}] ${t.block}: ${t.t}${ts ? ` (${ts >= deadline(d.key) ? 'late, ' : ''}${fmtTime(ts)})` : ''}${t.req ? '' : ' (optional)'}${secs ? ` — worked ${fmtDur(secs)}` : ''}\n`;
+    });
+    const tracked = dayTracked(d.key);
+    if (tracked) md += `\nTracked: ${fmtDur(tracked)}\n`;
+    if (S.hours[d.key]) md += `\nHours (entered by hand): ${S.hours[d.key]}\n`;
     if (S.notes[d.key]) md += `\nNotes:\n\n${S.notes[d.key].split('\n').map(l => '> ' + l).join('\n')}\n`;
   });
   md += `\n<!-- grind-data\n${JSON.stringify(S)}\n-->\n`;
@@ -1225,6 +1366,17 @@ function mergeState(a, b) {
   });
   out.checks = checks;
 
+  // Worked segments are unioned, so time tracked on two devices adds up rather
+  // than one total replacing the other. A segment still open on another device
+  // reappears here with the same start, and the longer run of it wins.
+  const tev = new Map();
+  [...(a.timeLog || []), ...(b.timeLog || [])].forEach(e => {
+    const k = `${e.t}|${e.day}|${e.id}|${e.set !== undefined ? 'set' : 'seg'}`;
+    const prev = tev.get(k);
+    if (!prev || (e.set === undefined && (e.s || 0) > (prev.s || 0))) tev.set(k, e);
+  });
+  out.timeLog = [...tev.values()].sort((x, y) => x.t - y.t);
+
   // Metrics are settled the same way, by their own timestamped history.
   const mev = new Map();
   [...(a.metricLog || []), ...(b.metricLog || [])].forEach(e => mev.set(e.t + '|' + e.id, e));
@@ -1251,8 +1403,10 @@ function mergeState(a, b) {
 
   out.maxSeen = Math.max(a.maxSeen || 0, b.maxSeen || 0);
   out.created = Math.min(a.created || Date.now(), b.created || Date.now());
-  out.theme = a.theme; // the theme is a per-device choice and never travels
+  out.theme = a.theme;     // the theme is a per-device choice and never travels
+  out.running = a.running; // nor does a timer that is still ticking on this device
   out.v = 1;
+  invalidateTime();
   return out;
 }
 
@@ -1261,12 +1415,13 @@ function mergeState(a, b) {
 function packState(s) {
   const p = {...s};
   delete p.theme;
+  delete p.running; // a live timer belongs to the device running it
   p.log = (s.log || []).map(e => e.type === 'clock' ? e
     : {t:e.t, type:e.type, day:e.day, id:e.id, ...(e.late ? {late:1, lateDays:e.lateDays} : {})});
   return p;
 }
 function unpackState(p) {
-  const s = Object.assign(baseState(), p, {theme:S.theme});
+  const s = Object.assign(baseState(), p, {theme:S.theme, running:S.running});
   s.log = (s.log || []).map(e => e.day && !e.title
     ? {...e, title:((BY_KEY[e.day] || {todos:[]}).todos.find(t => t.id === e.id) || {}).t || e.id, late:!!e.late}
     : e);
@@ -1470,7 +1625,9 @@ async function copySetupLink() {
 }
 
 /* ----- clock ----- */
-let lastDay = null;
+let lastDay = null, timerTicks = 0;
+// Closing the tab or locking the phone must not lose the stretch in progress.
+addEventListener('pagehide', () => { if (S.running) { holdTimer(); writeLocal(); } });
 function tick() {
   const t = nowTs(), d = new Date(t);
   $('#clockT').textContent = d.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
@@ -1479,6 +1636,15 @@ function tick() {
   if (lastDay && k !== lastDay) { if (selKey === lastDay && BY_KEY[k]) selKey = k; render(); }
   lastDay = k;
   if (Date.now() > S.maxSeen + 60000) { writeLocal(); scheduleFileWrite(); }
+  if (S.running) {
+    const e = holdTimer();
+    if (e) {
+      const live = $('[data-dur]'); if (live) live.textContent = fmtDur(taskSecs(S.running.day, S.running.id));
+      const tot = $('#trackedTotal');
+      if (tot && S.running.day === selKey) tot.textContent = fmtDur(dayTracked(selKey));
+      if (++timerTicks % 20 === 0) writeLocal(); // so a crash costs at most 20 seconds
+    }
+  }
   if (syncState === 'ok') paintSync(); // keep "synced 3 min ago" honest
   // look for work done on another device, but only while this tab is in front
   if (token && !syncing && !document.hidden && Date.now() - lastSync > 60000) syncNow();
@@ -1493,6 +1659,7 @@ document.addEventListener('keydown', e => {
 });
 $('#syncPill').onclick = () => { view = 'data'; location.hash = 'data'; render(); };
 (function init() {
+  settleTimerFromLastSession();
   consumeSetupLink(); // must run before the hash is read as a view or a date
   const h = location.hash.slice(1);
   if (BY_KEY[h]) selKey = h; else if (['goals','log','data'].includes(h)) view = h;

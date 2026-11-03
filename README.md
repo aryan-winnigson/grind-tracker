@@ -21,6 +21,21 @@ is mirrored to a **secret gist** on your own GitHub account, in two files:
 The gist is the source of truth. Clearing a browser loses nothing but the
 token; open the page again and everything comes back.
 
+## Tracking time
+
+Every item has a **Start** / **Pause** button and a minutes box. Start the
+clock when you begin and pause when you stop; starting a second item pauses
+the first, so the same minute is never charged to two things. The minutes box
+is editable, for the sessions you forget to start.
+
+Everything adds up into **Hours actually worked** for that day, and into
+`Hours logged` across the year. The figure can still be overridden by hand,
+with a link back to the tracked total.
+
+A timer left running when the tab closes is settled at the last figure written
+to disk, which happens every twenty seconds and again on the way out. Closing
+the lid overnight banks nothing.
+
 ## Setting up a device
 
 The first device needs a token once:
@@ -44,6 +59,10 @@ so working offline on a laptop and a phone at the same time keeps both sides:
 
 - **Checks** — the activity log is append-only, so both copies are unioned and
   the newest event for each item decides. An uncheck on one device survives.
+- **Time worked** — kept as a list of worked stretches rather than one total,
+  so an hour tracked on the laptop and half an hour on the phone come to an
+  hour and a half. A stretch still running elsewhere reappears with the same
+  start time, and the longer run of it wins, so it is never counted twice.
 - **Metrics** — settled the same way, from their own timestamped history.
 - **Notes and hours** — free text, so the most recent edit wins, using
   per-field edit timestamps.
