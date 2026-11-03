@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>The grind: 3 Nov 2026 to 31 Oct 2027</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📓</text></svg>">
+<meta name="description" content="A 12-month study plan tracker.">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#16223A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="The grind">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>:root{
   --paper:#F3F6FA; --grid:rgba(36,72,140,.07); --surface:#FFFFFF; --ink:#16223A; --ink-2:#4B5A76; --ink-3:#7A879E;
   --rule:#D3DBE8; --accent:#24499A; --hl:#F4DD4C; --ok:#2C7A4B; --late:#C47F12; --miss:#B23B3B; --future:#E3E8F0; --empty:transparent;
@@ -131,6 +138,18 @@ table.log th{font-weight:600;color:var(--ink-2)}
 .data p{color:var(--ink-2);margin:6px 0}
 .row{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;align-items:center}
 
+/* sync */
+.sync{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-2);border:1px solid var(--rule);background:var(--surface);border-radius:999px;padding:3px 10px;cursor:pointer;font-family:inherit;margin-top:6px}
+.sync:hover{border-color:var(--ink-3)}
+.sync i{width:7px;height:7px;border-radius:50%;background:var(--ink-3);flex:none}
+.sync.ok i{background:var(--ok)} .sync.busy i{background:var(--accent);animation:pulse 1s infinite}
+.sync.wait i{background:var(--late)} .sync.err i{background:var(--miss)}
+@keyframes pulse{50%{opacity:.25}}
+.data input[type=password],.data input[type=text]{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:6px 9px;min-width:270px;max-width:100%}
+.steps{color:var(--ink-2);margin:6px 0;padding-left:20px}
+.steps li{margin:3px 0}
+.steps code{background:var(--paper);border:1px solid var(--rule);border-radius:4px;padding:0 4px;font-size:13px}
+
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:9px 16px;border-radius:8px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s}
 .toast.show{opacity:1}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -145,7 +164,9 @@ table.log th{font-weight:600;color:var(--ink-2)}
         <button data-v="day">Today</button><button data-v="goals">Goals</button><button data-v="log">Log</button><button data-v="data">Data</button>
       </nav>
     </div>
-    <div class="clock" aria-live="off"><div class="t" id="clockT">--:--:--</div><div class="d" id="clockD"></div></div>
+    <div class="clock" aria-live="off"><div class="t" id="clockT">--:--:--</div><div class="d" id="clockD"></div>
+      <button class="sync" id="syncPill" title="Open the Data tab to manage sync"><i></i><span>Saved on this device</span></button>
+    </div>
   </header>
   <div id="banner"></div>
   <main id="main"></main>
@@ -642,10 +663,11 @@ const fmtDate = (k, opt={weekday:'long', day:'numeric', month:'long', year:'nume
 const fmtTime = ts => new Date(ts).toLocaleString('en-GB', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
 
 let memStore = null;
+const baseState = () => ({v:1, checks:{}, notes:{}, hours:{}, metrics:{}, metricLog:[], log:[], touch:{}, maxSeen:0, theme:'auto', created:Date.now()});
 function loadState() {
   let raw = null;
   try { raw = localStorage.getItem(STORE); } catch (e) { raw = memStore; }
-  const base = {v:1, checks:{}, notes:{}, hours:{}, metrics:{}, metricLog:[], log:[], maxSeen:0, theme:'auto', created:Date.now()};
+  const base = baseState();
   try { return raw ? Object.assign(base, JSON.parse(raw)) : base; } catch (e) { return base; }
 }
 let S = loadState();
@@ -663,11 +685,15 @@ function nowTs() {
 const todayKey = () => keyOf(new Date(nowTs()));
 const deadline = k => { const d = parseKey(k); d.setDate(d.getDate()+1); d.setHours(GRACE_H,0,0,0); return d.getTime(); };
 
-function persist() {
+function writeLocal() {
   S.maxSeen = Math.max(S.maxSeen, Date.now() > S.maxSeen - 120000 ? Date.now() : 0);
   const json = JSON.stringify(S);
   try { localStorage.setItem(STORE, json); } catch (e) { memStore = json; }
+}
+function persist() {
+  writeLocal();
   scheduleFileWrite();
+  scheduleSync(2000);
 }
 
 /* ----- status ----- */
@@ -826,15 +852,36 @@ function renderData() {
   const fsOk = 'showSaveFilePicker' in window;
   const st = {none:'No progress file linked.', linked:`Linked to ${esc(fileHandle?.name)}. Every change is written to it automatically${lastWrite ? `, last at ${fmtTime(lastWrite)}` : ''}.`, needs:`Linked to ${esc(fileHandle?.name)}, but the browser needs your permission again.`}[fileStatus];
   return `<div class="data">
-  <section><h2>Where your progress lives</h2><p>Progress saves automatically in this browser on this device. It works offline. To keep a copy you can read, back up or move to another device, link a Markdown progress file or export one.</p></section>
+  <section><h2>Where your progress lives</h2><p>Every change saves instantly in this browser, with or without a connection. Turn on sync below and the same progress also follows you to your phone and any other computer.</p></section>
+  <section><h2>Sync across devices</h2>
+    <p id="syncStatus">${esc(syncSentence())}</p>
+    ${token ? `<div class="row">
+      <button class="btn" data-act="syncnow">Sync now</button>
+      ${gistId ? `<a class="btn" href="https://gist.github.com/${esc(gistId)}" target="_blank" rel="noopener">View the gist</a>` : ''}
+      <button class="btn danger" data-act="disconnect">Turn sync off here</button></div>
+    <p class="muted">Your progress is kept in a secret gist on your account, as readable Markdown alongside the data this page reads back. Only you can see it. Each device reads before it writes, so working offline on two devices at once merges rather than overwrites.</p>
+    <h2 style="margin-top:20px">Add another device</h2>
+    <p>Point your phone’s camera at this code, or open the link on another computer. That device signs itself in and pulls your progress down — there’s nothing to type.</p>
+    <div class="row"><button class="btn" data-act="qr">${showQr ? 'Hide' : 'Show'} QR code</button><button class="btn" data-act="copylink">Copy setup link</button></div>
+    ${showQr ? `<div style="margin-top:12px;display:inline-block;background:#fff;padding:10px;border-radius:10px;border:1px solid var(--rule)">${qrSvg(setupLink())}</div>` : ''}
+    <p class="muted">The code and the link both carry your token, so treat them like a password: don’t photograph them for anyone else or paste them anywhere public. The token is in the part of the address after the <code>#</code>, which browsers never send to a server, and the page erases it from the address bar as soon as the new device has stored it.</p>`
+    : `<ol class="steps">
+      <li>Open <a href="https://github.com/settings/tokens/new?scopes=gist&amp;description=Grind%20tracker%20sync" target="_blank" rel="noopener">this GitHub page</a>. It is already set to the one permission needed: <code>gist</code>. Leave every other box unticked.</li>
+      <li>Pick an expiry you’re happy with, click <b>Generate token</b>, and copy it.</li>
+      <li>Paste it here. You only ever do this once — every other device is set up by scanning a QR code this page will show you.</li>
+    </ol>
+    <div class="row"><input type="password" id="ghToken" placeholder="ghp_…" autocomplete="off" spellcheck="false"><button class="btn primary" data-act="connect">Turn on sync</button></div>
+    <p class="muted">The token stays in this browser. It is never part of this site, and nobody else can read it from here. The <code>gist</code> permission lets it touch your gists and nothing else in your account, and you can revoke it at any time from GitHub’s token settings.</p>`}</section>
   <section><h2>Progress file</h2>${fsOk ? `<p>${st}</p><div class="row">
     ${fileStatus === 'needs' ? '<button class="btn primary" data-act="reconnect">Reconnect progress file</button>' : ''}
     <button class="btn" data-act="link">Create a new progress file</button><button class="btn" data-act="open">Open an existing progress file</button></div>
     <p class="muted">The file is Markdown: a readable day-by-day log, plus a data block at the end that this page reads back.</p>` :
     '<p>This browser can’t write to files directly (that needs Chrome or Edge on a computer). Use export and import below instead.</p>'}</section>
   <section><h2>Export and import</h2><div class="row"><button class="btn" data-act="export">Download progress (.md)</button><label class="btn" style="cursor:pointer">Load progress from a file<input type="file" accept=".md,.json,.txt" data-act="import" hidden></label></div>
-    <p class="muted">Loading a file replaces the progress in this browser. To move between devices, export on one and load on the other, or keep the linked file in a synced folder.</p></section>
-  <section><h2>Using it on a phone</h2><p>Phones often won’t run a page opened straight from the Files app. The simplest route is to host this one file somewhere private, like GitHub Pages, open it in your phone’s browser, and move progress with export and import.</p></section>
+    <p class="muted">Loading a file replaces the progress in this browser, and with sync on it replaces the gist copy too. Useful as a backup or to start from an older snapshot; for moving between devices day to day, sync does it for you.</p></section>
+  <section><h2>Using it on a phone</h2><p>Open this page in your phone’s browser and add it to the home screen — Share then <b>Add to Home Screen</b> on iPhone, the menu then <b>Install app</b> on Android. It opens full screen, works without a connection, and once you’ve pasted your token there it stays in step with your laptop.</p>
+    <p>On an iPhone this is worth doing rather than leaving it as a Safari tab: Safari clears a site’s saved data after seven days without a visit, which would sign you out of sync. Pages added to the home screen are exempt. Your progress would still be safe in the gist either way — you would just have to paste the token again.</p></section>
+  <section><h2>If you lose this browser’s data</h2><p>Nothing is lost with it. Your progress lives in the gist; this browser only holds a copy, plus the token that reaches it. Open the page again, scan the QR code from a device that still works, and everything comes back. If no device is left set up, make a fresh token and paste it in — the gist is found again by itself.</p></section>
   <section><h2>Theme</h2><div class="row">${['auto','light','dark'].map(t => `<button class="btn${S.theme === t ? ' primary' : ''}" data-theme-set="${t}">${t === 'auto' ? 'Match device' : t[0].toUpperCase()+t.slice(1)}</button>`).join('')}</div></section>
   <section><h2>How lateness works</h2><p>Items can only be checked from their own day onward. A day is on time when all required items are checked before 0${GRACE_H}:00 the next morning, so late contests still count. After that, checks are logged as late with the real time. If the device clock is set backwards, the tracker keeps using the latest time it has seen.</p></section>
   <section><h2>Erase everything</h2><div class="row"><button class="btn danger" data-act="reset">Erase all progress</button></div></section></div>`;
@@ -850,15 +897,20 @@ function bind() {
     const i = BY_KEY[selKey].idx + +b.dataset.nav; if (PLAN[i]) go(PLAN[i].key);
   });
   document.querySelectorAll('[data-todo]').forEach(cb => cb.onchange = () => toggle(selKey, BY_KEY[selKey].todos.find(t => t.id === cb.dataset.todo), cb.checked));
-  const notes = $('#notes'); if (notes) notes.oninput = debounce(() => { S.notes[selKey] = notes.value; persist(); }, 500);
-  const hours = $('#hours'); if (hours) hours.onchange = () => { S.hours[selKey] = hours.value; persist(); render(); };
+  const notes = $('#notes'); if (notes) notes.oninput = debounce(() => { S.notes[selKey] = notes.value; S.touch['notes:'+selKey] = nowTs(); persist(); }, 500);
+  const hours = $('#hours'); if (hours) hours.onchange = () => { S.hours[selKey] = hours.value; S.touch['hours:'+selKey] = nowTs(); persist(); render(); };
   document.querySelectorAll('[data-metric]').forEach(inp => inp.onchange = () => { S.metrics[inp.dataset.metric] = inp.value; S.metricLog.push({t:nowTs(), id:inp.dataset.metric, v:inp.value}); persist(); render(); });
   document.querySelectorAll('[data-theme-set]').forEach(b => b.onclick = () => { S.theme = b.dataset.themeSet; persist(); render(); });
   document.querySelectorAll('[data-act]').forEach(el => {
     const a = el.dataset.act;
     if (a === 'import') el.onchange = () => el.files[0] && importFile(el.files[0]);
-    else el.onclick = () => ({link:linkFile, open:openFile, reconnect:reconnect, export:exportMd, reset:resetAll})[a]();
+    else if (el.tagName !== 'A') el.onclick = () => ({link:linkFile, open:openFile, reconnect:reconnect, export:exportMd, reset:resetAll,
+      connect:connectSync, disconnect:disconnectSync, syncnow:() => { backoff = 0; syncNow(); },
+      copylink:copySetupLink, qr:() => { showQr = !showQr; render(); }})[a]();
   });
+  const tokenField = $('#ghToken');
+  if (tokenField) tokenField.onkeydown = e => { if (e.key === 'Enter') connectSync(); };
+  paintSync();
 }
 function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
 function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2600); }
@@ -894,14 +946,20 @@ function exportMd() {
 async function importFile(file) {
   try {
     const data = fromText(await file.text());
-    if (!confirm('Replace the progress in this browser with the progress in this file?')) return;
-    data.maxSeen = Math.max(data.maxSeen || 0, S.maxSeen); S = data; persist(); render(); toast('Progress loaded.');
+    if (!confirm(token ? 'Replace the progress in this browser, and the synced copy on your other devices, with the progress in this file?'
+      : 'Replace the progress in this browser with the progress in this file?')) return;
+    data.maxSeen = Math.max(data.maxSeen || 0, S.maxSeen); S = data;
+    writeLocal(); scheduleFileWrite(); render(); toast('Progress loaded.');
+    syncNow({replace:true}); // a deliberate replacement, so it overwrites rather than merges
   } catch (e) { toast('That file doesn’t contain progress from this tracker.'); }
 }
 function resetAll() {
-  if (prompt('Type erase to delete all progress in this browser.') !== 'erase') return;
-  const maxSeen = S.maxSeen; S = loadState(); S.checks = {}; S.notes = {}; S.hours = {}; S.metrics = {}; S.metricLog = []; S.log = []; S.maxSeen = maxSeen;
-  persist(); render(); toast('All progress erased.');
+  if (prompt(token ? 'Type erase to delete all progress here and in your synced gist.\n\nOther devices that are still signed in keep their own copy until you erase them too.'
+    : 'Type erase to delete all progress in this browser.') !== 'erase') return;
+  const maxSeen = S.maxSeen, theme = S.theme;
+  S = baseState(); S.maxSeen = maxSeen; S.theme = theme;
+  writeLocal(); scheduleFileWrite(); render(); toast('All progress erased.');
+  syncNow({replace:true});
 }
 
 /* ----- File System Access (Chrome/Edge desktop) ----- */
@@ -935,6 +993,482 @@ async function restoreHandle() {
     if (fileStatus === 'needs') toast('Open the Data tab to reconnect your progress file.'); } catch (e) {}
 }
 
+/* ===== A small QR encoder =====
+   Byte mode, error correction level M, versions 1 to 10, which is ample for a
+   setup link. It is written out here rather than fetched from anywhere so the
+   token in the link is only ever drawn on your own screen. */
+
+const QR_EC = { // version: [EC codewords per block, blocks and data codewords in group 1, then group 2]
+  1:[10,1,16,0,0], 2:[16,1,28,0,0], 3:[26,1,44,0,0], 4:[18,2,32,0,0], 5:[24,2,43,0,0],
+  6:[16,4,27,0,0], 7:[18,4,31,0,0], 8:[22,2,38,2,39], 9:[22,3,36,2,37], 10:[26,4,43,1,44]};
+const QR_ALIGN = {1:[], 2:[6,18], 3:[6,22], 4:[6,26], 5:[6,30], 6:[6,34], 7:[6,22,38], 8:[6,24,42], 9:[6,26,46], 10:[6,28,50]};
+
+const GF_EXP = new Uint8Array(512), GF_LOG = new Uint8Array(256);
+(() => { let x = 1; for (let i = 0; i < 255; i++) { GF_EXP[i] = x; GF_LOG[x] = i; x = (x << 1) ^ (x & 0x80 ? 0x11D : 0); }
+  for (let i = 255; i < 512; i++) GF_EXP[i] = GF_EXP[i - 255]; })();
+const gfMul = (a, b) => a && b ? GF_EXP[GF_LOG[a] + GF_LOG[b]] : 0;
+
+function rsGen(n) {
+  let p = [1];
+  for (let i = 0; i < n; i++) {
+    const q = new Array(p.length + 1).fill(0);
+    for (let j = 0; j < p.length; j++) { q[j] ^= p[j]; q[j + 1] ^= gfMul(p[j], GF_EXP[i]); }
+    p = q;
+  }
+  return p;
+}
+function rsEncode(data, n) {
+  const gen = rsGen(n), res = new Uint8Array(n);
+  for (const d of data) {
+    const factor = d ^ res[0];
+    res.copyWithin(0, 1); res[n - 1] = 0;
+    if (factor) for (let i = 0; i < n; i++) res[i] ^= gfMul(gen[i + 1], factor);
+  }
+  return res;
+}
+
+const QR_MASK = [
+  (r, c) => (r + c) % 2 === 0,
+  (r, c) => r % 2 === 0,
+  (r, c) => c % 3 === 0,
+  (r, c) => (r + c) % 3 === 0,
+  (r, c) => ((r >> 1) + Math.floor(c / 3)) % 2 === 0,
+  (r, c) => (r * c) % 2 + (r * c) % 3 === 0,
+  (r, c) => ((r * c) % 2 + (r * c) % 3) % 2 === 0,
+  (r, c) => ((r + c) % 2 + (r * c) % 3) % 2 === 0];
+
+function qrPenalty(m) {
+  const n = m.length;
+  let score = 0, dark = 0;
+  const line = get => {
+    let run = 1, prev = get(0);
+    for (let i = 1; i < n; i++) {
+      const v = get(i);
+      if (v === prev) { run++; if (run === 5) score += 3; else if (run > 5) score++; }
+      else { run = 1; prev = v; }
+    }
+  };
+  for (let i = 0; i < n; i++) { line(j => m[i][j]); line(j => m[j][i]); }
+  for (let r = 0; r < n - 1; r++) for (let c = 0; c < n - 1; c++)
+    if (m[r][c] === m[r][c+1] && m[r][c] === m[r+1][c] && m[r][c] === m[r+1][c+1]) score += 3;
+  const FINDERISH = [1,0,1,1,1,0,1,0,0,0,0];
+  const hunt = get => {
+    for (let i = 0; i + 11 <= n; i++) {
+      let fwd = true, back = true;
+      for (let k = 0; k < 11; k++) {
+        if (get(i + k) !== FINDERISH[k]) fwd = false;
+        if (get(i + k) !== FINDERISH[10 - k]) back = false;
+      }
+      if (fwd || back) score += 40;
+    }
+  };
+  for (let i = 0; i < n; i++) { hunt(j => m[i][j]); hunt(j => m[j][i]); }
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (m[r][c]) dark++;
+  score += 10 * Math.floor(Math.abs(dark * 100 / (n * n) - 50) / 5);
+  return score;
+}
+
+function qrEncode(text) {
+  const bytes = new TextEncoder().encode(text);
+  let ver = 0;
+  for (let v = 1; v <= 10; v++) {
+    const [, g1b, g1d, g2b, g2d] = QR_EC[v];
+    if (bytes.length * 8 + 4 + (v < 10 ? 8 : 16) <= (g1b * g1d + g2b * g2d) * 8) { ver = v; break; }
+  }
+  if (!ver) return null; // longer than this encoder handles
+
+  const [ecLen, g1b, g1d, g2b, g2d] = QR_EC[ver];
+  const totalData = g1b * g1d + g2b * g2d;
+  const bits = [];
+  const push = (val, len) => { for (let i = len - 1; i >= 0; i--) bits.push((val >> i) & 1); };
+  push(4, 4);                               // byte mode
+  push(bytes.length, ver < 10 ? 8 : 16);
+  bytes.forEach(b => push(b, 8));
+  for (let i = 0; i < 4 && bits.length < totalData * 8; i++) bits.push(0);
+  while (bits.length % 8) bits.push(0);
+  const data = [];
+  for (let i = 0; i < bits.length; i += 8) data.push(parseInt(bits.slice(i, i + 8).join(''), 2));
+  for (let i = 0; data.length < totalData; i++) data.push(i % 2 ? 0x11 : 0xEC);
+
+  const blocks = [], ecs = [];
+  let off = 0;
+  for (let i = 0; i < g1b + g2b; i++) {
+    const len = i < g1b ? g1d : g2d;
+    const blk = data.slice(off, off + len); off += len;
+    blocks.push(blk); ecs.push(rsEncode(blk, ecLen));
+  }
+  const stream = [];
+  for (let i = 0; i < Math.max(g1d, g2d); i++) blocks.forEach(b => { if (i < b.length) stream.push(b[i]); });
+  for (let i = 0; i < ecLen; i++) ecs.forEach(b => stream.push(b[i]));
+
+  const size = ver * 4 + 17;
+  const m = Array.from({length:size}, () => new Array(size).fill(0));
+  const fn = Array.from({length:size}, () => new Array(size).fill(false));
+  const put = (r, c, v) => { if (r >= 0 && c >= 0 && r < size && c < size) { m[r][c] = v; fn[r][c] = true; } };
+
+  [[0,0],[0,size-7],[size-7,0]].forEach(([br, bc]) => {
+    for (let i = -1; i <= 7; i++) for (let j = -1; j <= 7; j++) {
+      const ring = i >= 0 && i <= 6 && j >= 0 && j <= 6 && (i === 0 || i === 6 || j === 0 || j === 6);
+      const core = i >= 2 && i <= 4 && j >= 2 && j <= 4;
+      put(br + i, bc + j, ring || core ? 1 : 0);
+    }
+  });
+  for (let i = 8; i < size - 8; i++) { put(6, i, i % 2 ? 0 : 1); put(i, 6, i % 2 ? 0 : 1); }
+  const ap = QR_ALIGN[ver], last = ap[ap.length - 1];
+  ap.forEach(r => ap.forEach(c => {
+    // Only the three that would sit on a finder pattern are left out. The ones
+    // crossing the timing line are drawn, and overwrite it where they meet.
+    if ((r === 6 && c === 6) || (r === 6 && c === last) || (r === last && c === 6)) return;
+    for (let i = -2; i <= 2; i++) for (let j = -2; j <= 2; j++)
+      put(r + i, c + j, Math.max(Math.abs(i), Math.abs(j)) === 1 ? 0 : 1);
+  }));
+  for (let i = 0; i < 9; i++) { put(8, i, 0); put(i, 8, 0); }
+  for (let i = 0; i < 8; i++) { put(8, size - 1 - i, 0); put(size - 1 - i, 8, 0); }
+  put(size - 8, 8, 1); // the module that is always dark
+  if (ver >= 7) {
+    let rem = ver;
+    for (let i = 0; i < 12; i++) rem = (rem << 1) ^ ((rem >>> 11) * 0x1F25);
+    const vb = (ver << 12) | (rem & 0xFFF);
+    for (let i = 0; i < 18; i++) {
+      const bit = (vb >>> i) & 1, r = Math.floor(i / 3), c = size - 11 + i % 3;
+      put(r, c, bit); put(c, r, bit);
+    }
+  }
+
+  let bi = 0;
+  const flat = [];
+  stream.forEach(b => { for (let i = 7; i >= 0; i--) flat.push((b >> i) & 1); });
+  let upward = true;
+  for (let right = size - 1; right >= 1; right -= 2) {
+    if (right === 6) right = 5; // the vertical timing line is not part of the zigzag
+    for (let v = 0; v < size; v++) {
+      const row = upward ? size - 1 - v : v;
+      for (let k = 0; k < 2; k++) {
+        const col = right - k;
+        if (fn[row][col]) continue;
+        m[row][col] = bi < flat.length ? flat[bi++] : 0;
+      }
+    }
+    upward = !upward;
+  }
+
+  const apply = mask => m.map((row, r) => row.map((v, c) => fn[r][c] ? v : v ^ (QR_MASK[mask](r, c) ? 1 : 0)));
+  let best = null, bestScore = Infinity, bestMask = 0;
+  for (let mask = 0; mask < 8; mask++) {
+    const cand = apply(mask), s = qrPenalty(cand);
+    if (s < bestScore) { bestScore = s; best = cand; bestMask = mask; }
+  }
+  let rem = bestMask; // EC level M is 0b00, so the five data bits are just the mask
+  for (let i = 0; i < 10; i++) rem = (rem << 1) ^ ((rem >>> 9) * 0x537);
+  const fb = (((bestMask << 10) | (rem & 0x3FF)) ^ 0x5412) & 0x7FFF;
+  const bit = i => (fb >>> i) & 1;
+  for (let i = 0; i <= 5; i++) best[i][8] = bit(i);
+  best[7][8] = bit(6); best[8][8] = bit(7); best[8][7] = bit(8);
+  for (let i = 9; i < 15; i++) best[8][14 - i] = bit(i);
+  for (let i = 0; i < 8; i++) best[8][size - 1 - i] = bit(i);
+  for (let i = 8; i < 15; i++) best[size - 15 + i][8] = bit(i);
+  best[size - 8][8] = 1;
+  return best;
+}
+
+function qrSvg(text, px = 190) {
+  const m = qrEncode(text);
+  if (!m) return '<p class="muted">That link is too long to turn into a QR code. Use the copy button instead.</p>';
+  const n = m.length, quiet = 4, total = n + quiet * 2;
+  let d = '';
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (m[r][c]) d += `M${c + quiet} ${r + quiet}h1v1h-1z`;
+  return `<svg viewBox="0 0 ${total} ${total}" width="${px}" height="${px}" shape-rendering="crispEdges" role="img" aria-label="Setup QR code">
+    <rect width="${total}" height="${total}" fill="#fff"/><path d="${d}" fill="#000"/></svg>`;
+}
+
+/* ===== Cross-device sync, through a secret gist on your own GitHub account =====
+   The gist holds two files: grind-data.json, which this page reads back, and
+   grind-progress.md, the same progress in readable form. Every device reads
+   before it writes and merges the two sides, so two devices that both worked
+   offline end up with the union of what they did rather than one erasing the
+   other. The token lives in this browser only; it is never part of the site. */
+
+const TOKEN_KEY = 'grind-gh-token', GIST_KEY = 'grind-gist-id', USER_KEY = 'grind-gh-user';
+const GIST_DATA = 'grind-data.json', GIST_MD = 'grind-progress.md';
+const GIST_DESC = 'The grind: progress (synced automatically — don’t rename these files)';
+
+let token = null, gistId = null, ghUser = null, etag = null;
+let syncState = 'off', syncNote = '', lastSync = 0, syncing = false, pendingSync = false, syncTimer = null, backoff = 0, lastRemoteFp = null;
+
+/* ----- merging two copies of the state ----- */
+const stable = v => Array.isArray(v) ? v.map(stable)
+  : (v && typeof v === 'object' ? Object.keys(v).sort().reduce((o, k) => (o[k] = stable(v[k]), o), {}) : v);
+const fingerprint = s => JSON.stringify(stable(packState(s)));
+
+function mergeState(a, b) {
+  const out = {...a};
+
+  // The activity log is append-only, so a union of both sides loses nothing.
+  const ev = new Map();
+  [...(a.log || []), ...(b.log || [])].forEach(e => ev.set(`${e.t}|${e.type}|${e.day || ''}|${e.id || ''}`, e));
+  out.log = [...ev.values()].sort((x, y) => x.t - y.t);
+
+  // Checks start as the union of both sides, which covers any progress made
+  // before this file could sync, and are then settled by the newest log event
+  // for each item — so an uncheck on one device survives the merge.
+  const checks = {};
+  [a.checks || {}, b.checks || {}].forEach(src => Object.entries(src).forEach(([day, items]) =>
+    Object.entries(items).forEach(([id, ts]) => {
+      checks[day] = checks[day] || {};
+      checks[day][id] = checks[day][id] ? Math.min(checks[day][id], ts) : ts;
+    })));
+  const latest = {};
+  out.log.forEach(e => { if (e.type === 'check' || e.type === 'uncheck') latest[e.day + '|' + e.id] = e; });
+  Object.values(latest).forEach(e => {
+    if (e.type === 'check') { checks[e.day] = checks[e.day] || {}; checks[e.day][e.id] = e.t; }
+    else if (checks[e.day]) delete checks[e.day][e.id];
+  });
+  out.checks = checks;
+
+  // Metrics are settled the same way, by their own timestamped history.
+  const mev = new Map();
+  [...(a.metricLog || []), ...(b.metricLog || [])].forEach(e => mev.set(e.t + '|' + e.id, e));
+  out.metricLog = [...mev.values()].sort((x, y) => x.t - y.t);
+  out.metrics = {...(b.metrics || {}), ...(a.metrics || {})};
+  out.metricLog.forEach(e => out.metrics[e.id] = e.v);
+
+  // Notes and hours are free text, so the most recent edit wins.
+  const ta = a.touch || {}, tb = b.touch || {};
+  out.touch = {};
+  new Set([...Object.keys(ta), ...Object.keys(tb)]).forEach(k => out.touch[k] = Math.max(ta[k] || 0, tb[k] || 0));
+  ['notes', 'hours'].forEach(f => {
+    const merged = {};
+    new Set([...Object.keys(a[f] || {}), ...Object.keys(b[f] || {})]).forEach(k => {
+      const va = (a[f] || {})[k], vb = (b[f] || {})[k];
+      const ka = ta[f + ':' + k] || 0, kb = tb[f + ':' + k] || 0;
+      if (va === undefined) merged[k] = vb;
+      else if (vb === undefined) merged[k] = va;
+      else if (ka !== kb) merged[k] = ka > kb ? va : vb;
+      else merged[k] = String(va).length >= String(vb).length ? va : vb; // nothing to date them by: keep the fuller one
+    });
+    out[f] = merged;
+  });
+
+  out.maxSeen = Math.max(a.maxSeen || 0, b.maxSeen || 0);
+  out.created = Math.min(a.created || Date.now(), b.created || Date.now());
+  out.theme = a.theme; // the theme is a per-device choice and never travels
+  out.v = 1;
+  return out;
+}
+
+/* Log entries carry the item's title for the Log view, but the title is already
+   in the plan, so it is left out of what gets uploaded and restored on the way back. */
+function packState(s) {
+  const p = {...s};
+  delete p.theme;
+  p.log = (s.log || []).map(e => e.type === 'clock' ? e
+    : {t:e.t, type:e.type, day:e.day, id:e.id, ...(e.late ? {late:1, lateDays:e.lateDays} : {})});
+  return p;
+}
+function unpackState(p) {
+  const s = Object.assign(baseState(), p, {theme:S.theme});
+  s.log = (s.log || []).map(e => e.day && !e.title
+    ? {...e, title:((BY_KEY[e.day] || {todos:[]}).todos.find(t => t.id === e.id) || {}).t || e.id, late:!!e.late}
+    : e);
+  return s;
+}
+
+/* ----- GitHub ----- */
+async function gh(path, opts = {}) {
+  let r;
+  try {
+    r = await fetch('https://api.github.com' + path, {...opts, headers:{
+      Accept:'application/vnd.github+json', Authorization:'Bearer ' + token,
+      'X-GitHub-Api-Version':'2022-11-28',
+      ...(opts.body ? {'Content-Type':'application/json'} : {}), ...(opts.headers || {})}});
+  } catch (e) { throw new Error(navigator.onLine ? 'Couldn’t reach GitHub.' : 'You’re offline.'); }
+  if (r.status === 401) throw Object.assign(new Error('GitHub rejected this token. It may have been revoked or expired.'), {fatal:true});
+  if (r.status === 404 && path.startsWith('/gists/')) throw Object.assign(new Error('The progress gist is gone, or this token can’t read gists.'), {missing:true});
+  if (r.status === 403 && !r.headers.get('x-ratelimit-remaining')) throw Object.assign(new Error('This token isn’t allowed to use gists. It needs the gist permission.'), {fatal:true});
+  if (r.status === 403 || r.status === 429) throw new Error('GitHub is rate limiting this token; it will try again shortly.');
+  if (!r.ok && r.status !== 304) throw new Error('GitHub returned ' + r.status + '.');
+  return r;
+}
+
+async function findGist() {
+  for (let page = 1; page <= 5; page++) {
+    const list = await (await gh(`/gists?per_page=100&page=${page}`)).json();
+    const hit = list.find(g => g.files && g.files[GIST_DATA]);
+    if (hit) return hit.id;
+    if (list.length < 100) return null;
+  }
+  return null;
+}
+const gistBody = () => JSON.stringify({description:GIST_DESC, public:false,
+  files:{[GIST_DATA]:{content:JSON.stringify(packState(S))}, [GIST_MD]:{content:toMarkdown()}}});
+
+async function pullRemote() {
+  const r = await gh('/gists/' + gistId, {headers: etag ? {'If-None-Match':etag} : {}});
+  if (r.status === 304) return undefined; // unchanged since the last look
+  etag = r.headers.get('ETag');
+  const f = ((await r.json()).files || {})[GIST_DATA];
+  if (!f) return null;
+  const text = f.truncated ? await (await fetch(f.raw_url)).text() : f.content;
+  return unpackState(JSON.parse(text));
+}
+async function pushRemote() {
+  await gh('/gists/' + gistId, {method:'PATCH', body:gistBody()});
+  etag = null; // force a full read next time rather than trusting the write's tag
+}
+
+/* ----- the sync cycle: read, merge, write ----- */
+function scheduleSync(ms = 2000) {
+  if (!token) return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => syncNow(), ms);
+}
+async function syncNow(opts = {}) {
+  if (!token) return;
+  if (syncing) { pendingSync = true; return; }
+  syncing = true; clearTimeout(syncTimer); setSync('busy');
+  try {
+    if (!gistId) {
+      gistId = await findGist();
+      if (!gistId) { gistId = (await (await gh('/gists', {method:'POST', body:gistBody()})).json()).id; etag = null; }
+      try { localStorage.setItem(GIST_KEY, gistId); } catch (e) {}
+    }
+    if (opts.replace) {
+      await pushRemote(); // an import or an erase is meant to overwrite, not merge
+      lastRemoteFp = fingerprint(S);
+    } else {
+      const remote = await pullRemote();
+      if (remote === undefined) {
+        // GitHub says the gist is untouched since we last read it, so there is
+        // nothing to merge — but our own changes still have to go up.
+        const mine = fingerprint(S);
+        if (mine !== lastRemoteFp) { await pushRemote(); lastRemoteFp = mine; }
+      } else if (remote === null) {
+        await pushRemote(); // the gist exists but has no data file in it yet
+        lastRemoteFp = fingerprint(S);
+      } else {
+        const mine = fingerprint(S), theirs = fingerprint(remote);
+        lastRemoteFp = theirs;
+        if (mine !== theirs) {
+          S = mergeState(S, remote);
+          writeLocal();
+          const merged = fingerprint(S);
+          if (merged !== mine) render();
+          if (merged !== theirs) { await pushRemote(); lastRemoteFp = merged; }
+        }
+      }
+    }
+    lastSync = Date.now(); backoff = 0; setSync('ok');
+  } catch (e) {
+    if (e.missing) { gistId = null; etag = null; lastRemoteFp = null; try { localStorage.removeItem(GIST_KEY); } catch (_) {} }
+    if (e.fatal) { setSync('err', e.message); }
+    else {
+      backoff = Math.min(backoff ? backoff * 2 : 5000, 300000);
+      setSync('wait', navigator.onLine ? e.message : 'You’re offline. Everything is saved here and will sync when you’re back.');
+      syncTimer = setTimeout(() => syncNow(), backoff);
+    }
+  } finally {
+    syncing = false;
+    if (pendingSync) { pendingSync = false; scheduleSync(400); }
+  }
+}
+
+/* ----- status ----- */
+function ago(ts) {
+  const s = Math.max(0, Math.round((Date.now() - ts) / 1000));
+  if (s < 45) return 'just now';
+  if (s < 5400) return Math.round(s / 60) + ' min ago';
+  return 'at ' + new Date(ts).toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'});
+}
+const SYNC_LABEL = {off:'This device only', busy:'Syncing…', ok:'Synced', wait:'Waiting to sync', err:'Sync problem'};
+function syncSentence() {
+  if (!token) return 'Not syncing. Progress is saved in this browser only, so it won’t follow you to another device.';
+  if (syncState === 'err') return syncNote;
+  if (syncState === 'wait') return syncNote + ' Your progress is safe in this browser in the meantime.';
+  if (syncState === 'busy') return 'Syncing with your gist…';
+  return `Syncing as @${esc(ghUser || '')}` + (lastSync ? `. Last synced ${ago(lastSync)}.` : '.');
+}
+function setSync(state, note = '') {
+  syncState = state; syncNote = note;
+  paintSync();
+}
+function paintSync() {
+  const p = $('#syncPill');
+  if (p) {
+    p.className = 'sync' + (syncState === 'off' ? '' : ' ' + syncState);
+    p.querySelector('span').textContent = syncState === 'ok' && lastSync ? 'Synced ' + ago(lastSync) : SYNC_LABEL[syncState];
+    p.title = syncNote || syncSentence();
+  }
+  const el = $('#syncStatus'); if (el) el.textContent = syncSentence();
+}
+
+/* ----- turning sync on and off ----- */
+async function connectSync() {
+  const field = $('#ghToken'); if (!field) return;
+  const tok = field.value.trim();
+  if (!tok) return toast('Paste your token first.');
+  token = tok; setSync('busy');
+  try {
+    ghUser = (await (await gh('/user')).json()).login;
+    try { localStorage.setItem(TOKEN_KEY, token); localStorage.setItem(USER_KEY, ghUser); } catch (e) {}
+    await syncNow();
+    if (syncState === 'err') throw new Error(syncNote);
+    render();
+    toast(`Sync is on. Your progress lives in a secret gist on @${ghUser}.`);
+  } catch (e) {
+    token = null; ghUser = null;
+    try { localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(USER_KEY); } catch (_) {}
+    setSync('err', e.message); render(); toast(e.message);
+  }
+}
+function disconnectSync() {
+  if (!confirm('Stop syncing on this device?\n\nYour progress stays in this browser and in the gist. Nothing is deleted.')) return;
+  token = gistId = ghUser = etag = lastRemoteFp = null; lastSync = 0; backoff = 0; clearTimeout(syncTimer);
+  try { [TOKEN_KEY, GIST_KEY, USER_KEY].forEach(k => localStorage.removeItem(k)); } catch (e) {}
+  setSync('off'); render(); toast('Sync turned off on this device.');
+}
+/* ----- setting up a new device from a link or a QR code -----
+   The token rides in the fragment, which browsers never send to a server, and
+   is wiped from the address bar and the history entry the moment it is read. */
+let setupFromLink = false, showQr = false;
+const setupLink = () => location.origin + location.pathname + '#s=' + encodeURIComponent(btoa(token));
+
+function consumeSetupLink() {
+  const m = location.hash.match(/[#&]s=([^&]*)/);
+  if (!m) return;
+  history.replaceState(null, '', location.pathname + location.search);
+  let tok = '';
+  try { tok = atob(decodeURIComponent(m[1])); } catch (e) { return; }
+  if (!/^(gh[pousr]_|github_pat_)[A-Za-z0-9_]+$/.test(tok)) return toast('That setup link didn’t contain a usable token.');
+  token = tok; setupFromLink = true;
+  try { localStorage.setItem(TOKEN_KEY, tok); localStorage.removeItem(GIST_KEY); localStorage.removeItem(USER_KEY); } catch (e) {}
+  gistId = null; ghUser = null; etag = null; lastRemoteFp = null;
+}
+
+async function bootSync() {
+  try { token = localStorage.getItem(TOKEN_KEY); gistId = localStorage.getItem(GIST_KEY); ghUser = localStorage.getItem(USER_KEY); } catch (e) {}
+  if (setupFromLink) { try { token = localStorage.getItem(TOKEN_KEY); } catch (e) {} gistId = ghUser = null; }
+  addEventListener('online', () => { backoff = 0; scheduleSync(500); });
+  addEventListener('visibilitychange', () => { if (!document.hidden) scheduleSync(500); });
+  if (!token) return setSync('off');
+  setSync('busy');
+  if (!ghUser) {
+    try { ghUser = (await (await gh('/user')).json()).login; localStorage.setItem(USER_KEY, ghUser); }
+    catch (e) {
+      if (e.fatal) { token = null; try { localStorage.removeItem(TOKEN_KEY); } catch (_) {} }
+      setSync(e.fatal ? 'err' : 'wait', e.message); render();
+      if (!e.fatal) scheduleSync(10000);
+      return;
+    }
+  }
+  await syncNow();
+  if (setupFromLink) { render(); toast(`This device is now syncing as @${ghUser}.`); }
+}
+
+async function copySetupLink() {
+  try { await navigator.clipboard.writeText(setupLink()); toast('Setup link copied. It carries your token, so treat it like a password.'); }
+  catch (e) { toast('Couldn’t copy. Use the QR code instead.'); }
+}
+
 /* ----- clock ----- */
 let lastDay = null;
 function tick() {
@@ -944,7 +1478,10 @@ function tick() {
   const k = keyOf(d);
   if (lastDay && k !== lastDay) { if (selKey === lastDay && BY_KEY[k]) selKey = k; render(); }
   lastDay = k;
-  if (Date.now() > S.maxSeen + 60000) persist();
+  if (Date.now() > S.maxSeen + 60000) { writeLocal(); scheduleFileWrite(); }
+  if (syncState === 'ok') paintSync(); // keep "synced 3 min ago" honest
+  // look for work done on another device, but only while this tab is in front
+  if (token && !syncing && !document.hidden && Date.now() - lastSync > 60000) syncNow();
 }
 
 /* ----- boot ----- */
@@ -954,10 +1491,16 @@ document.addEventListener('keydown', e => {
   if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { const i = BY_KEY[selKey].idx + (e.key === 'ArrowLeft' ? -1 : 1); if (PLAN[i]) go(PLAN[i].key); }
   if (e.key === 't') go(BY_KEY[todayKey()] ? todayKey() : START_KEY);
 });
+$('#syncPill').onclick = () => { view = 'data'; location.hash = 'data'; render(); };
 (function init() {
+  consumeSetupLink(); // must run before the hash is read as a view or a date
   const h = location.hash.slice(1);
   if (BY_KEY[h]) selKey = h; else if (['goals','log','data'].includes(h)) view = h;
-  render(); tick(); setInterval(tick, 1000); restoreHandle().then(() => view === 'data' && render());
+  if (setupFromLink) view = 'data';
+  render(); tick(); setInterval(tick, 1000);
+  restoreHandle().then(() => view === 'data' && render());
+  bootSync();
+  if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 })();
 
 </script>
