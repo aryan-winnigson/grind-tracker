@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The grind: 3 Nov 2026 to 31 Oct 2027</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📓</text></svg>">
+<style>:root{
+  --paper:#F3F6FA; --grid:rgba(36,72,140,.07); --surface:#FFFFFF; --ink:#16223A; --ink-2:#4B5A76; --ink-3:#7A879E;
+  --rule:#D3DBE8; --accent:#24499A; --hl:#F4DD4C; --ok:#2C7A4B; --late:#C47F12; --miss:#B23B3B; --future:#E3E8F0; --empty:transparent;
+  --serif:"Charter","Bitstream Charter","Sitka Text","Iowan Old Style","Cambria",Georgia,serif;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  color-scheme:light;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){
+  --paper:#0D1420; --grid:rgba(150,180,235,.05); --surface:#131C2B; --ink:#E5EBF6; --ink-2:#A3B0C8; --ink-3:#6E7C95;
+  --rule:#253247; --accent:#93B2F2; --hl:#E2C93F; --ok:#52B47C; --late:#E2A541; --miss:#E06666; --future:#1A2537; color-scheme:dark; } }
+:root[data-theme="dark"]{
+  --paper:#0D1420; --grid:rgba(150,180,235,.05); --surface:#131C2B; --ink:#E5EBF6; --ink-2:#A3B0C8; --ink-3:#6E7C95;
+  --rule:#253247; --accent:#93B2F2; --hl:#E2C93F; --ok:#52B47C; --late:#E2A541; --miss:#E06666; --future:#1A2537; color-scheme:dark; }
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background-color:var(--paper);color:var(--ink);font:15px/1.55 var(--sans);font-variant-numeric:tabular-nums;
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:22px 22px;}
+a{color:var(--accent);text-underline-offset:2px}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:3px}
+.wrap{max-width:1180px;margin:0 auto;padding:18px 20px 60px}
+
+/* top bar */
+.top{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;padding-bottom:12px;border-bottom:2px solid var(--ink)}
+.brand{font-family:var(--serif);font-size:15px;color:var(--ink-2)}
+.brand b{color:var(--ink);font-weight:700}
+.clock{text-align:right}
+.clock .t{font-family:var(--serif);font-size:28px;line-height:1;letter-spacing:.5px}
+.clock .d{font-size:13px;color:var(--ink-2)}
+nav.tabs{display:flex;gap:4px;margin-top:10px}
+nav.tabs button{background:none;border:1px solid transparent;border-radius:6px;padding:5px 12px;cursor:pointer;color:var(--ink-2)}
+nav.tabs button[aria-current="page"]{border-color:var(--ink);color:var(--ink);background:var(--surface)}
+.banner{margin:12px 0 0;padding:10px 14px;border-left:4px solid var(--miss);background:var(--surface);font-size:14px}
+
+/* year strip: the signature element */
+.strip{--c:15px;position:relative;margin:18px 0 6px;overflow-x:auto;padding-bottom:6px}
+.strip-inner{display:inline-grid;grid-auto-flow:column;grid-template-rows:16px repeat(7,var(--c));gap:4px;min-width:max-content}
+.strip .mlabel{font-size:11px;color:var(--ink-3);white-space:nowrap;grid-row:1}
+.cell{width:var(--c);height:var(--c);border-radius:2px;border:0;padding:0;cursor:pointer;background:var(--future)}
+.cell.blank{visibility:hidden;cursor:default}
+.cell.ontime{background:var(--ok)}
+.cell.late{background:var(--late)}
+.cell.missed{background:var(--miss)}
+.cell.partial{background:repeating-linear-gradient(45deg,var(--miss) 0 2px,var(--future) 2px 4px)}
+.cell.progress,.cell.open{background:var(--future);box-shadow:inset 0 0 0 2px var(--hl)}
+.cell.progress{background:linear-gradient(var(--hl),var(--hl)) bottom/100% 45% no-repeat,var(--future)}
+.cell.today{outline:2px solid var(--ink);outline-offset:1px}
+.cell.sel{transform:scale(1.25)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink-2);margin-bottom:18px}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:2px}
+
+/* day */
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:28px;align-items:start}
+@media (max-width:900px){.layout{grid-template-columns:1fr}}
+@media (max-width:600px){.clock{text-align:left}.strip{--c:13px}}
+.dayhead{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
+.dayhead h1{font-family:var(--serif);font-weight:400;font-size:clamp(26px,4vw,40px);line-height:1.1;margin:0}
+.dayhead .meta{color:var(--ink-2);margin-top:6px;font-size:14px}
+.navbtns{display:flex;gap:6px}
+.btn{background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:6px 12px;cursor:pointer}
+.btn:hover{border-color:var(--ink-3)}
+.btn.primary{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.btn.danger{color:var(--miss);border-color:var(--miss)}
+.chip{display:inline-block;font-size:12.5px;padding:2px 9px;border-radius:999px;border:1px solid currentColor;margin-left:8px;vertical-align:middle}
+.chip.ontime{color:var(--ok)} .chip.late{color:var(--late)} .chip.missed,.chip.partial{color:var(--miss)} .chip.future{color:var(--ink-3)} .chip.open,.chip.progress{color:var(--ink)}
+.notice{margin:16px 0 0;padding:10px 14px;background:var(--surface);border:1px dashed var(--rule);border-radius:6px;font-size:14px;color:var(--ink-2)}
+.notice.warn{border-style:solid;border-color:var(--late);color:var(--ink)}
+
+.block{margin-top:26px}
+.block h2{font-family:var(--serif);font-weight:400;font-size:19px;margin:0 0 8px;display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--rule);padding-bottom:4px}
+.block h2 small{font-family:var(--sans);font-size:12.5px;color:var(--ink-3)}
+.todo{display:grid;grid-template-columns:26px 1fr;gap:10px;padding:10px 0;border-bottom:1px dotted var(--rule)}
+.todo:last-child{border-bottom:0}
+.todo input{width:20px;height:20px;margin:2px 0 0;accent-color:var(--ok);cursor:pointer}
+.todo input:disabled{cursor:not-allowed}
+.todo .tt{font-weight:600;line-height:1.4}
+.todo.done .tt{text-decoration:line-through;text-decoration-color:var(--ink-3);color:var(--ink-2)}
+.todo .opt{font-weight:400;font-size:12.5px;color:var(--ink-3);margin-left:6px}
+.todo .det{color:var(--ink-2);font-size:14px;margin-top:3px;max-width:75ch}
+.todo .depth{font-size:13.5px;margin-top:3px;max-width:75ch}
+.todo .depth b{font-weight:600}
+.todo .links{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:5px;font-size:13.5px}
+.todo .stamp{font-size:12.5px;margin-top:4px;color:var(--ok)}
+.todo .stamp.late{color:var(--late)}
+.todo.checkpoint .tt{font-weight:500;font-style:italic}
+
+aside .panel{background:var(--surface);border:1px solid var(--rule);border-radius:8px;padding:14px 16px;margin-bottom:16px}
+aside h3{font-family:var(--serif);font-weight:400;font-size:17px;margin:0 0 8px}
+aside textarea{width:100%;min-height:180px;resize:vertical;font:14px/1.5 var(--sans);color:var(--ink);background:var(--paper);border:1px solid var(--rule);border-radius:6px;padding:8px}
+aside label{font-size:13.5px;color:var(--ink-2)}
+aside input[type=number]{width:80px;font:inherit;color:var(--ink);background:var(--paper);border:1px solid var(--rule);border-radius:6px;padding:4px 6px;margin-left:6px}
+.stats{display:grid;grid-template-columns:1fr auto;gap:4px 10px;font-size:14px}
+.stats span:nth-child(even){text-align:right;font-weight:600}
+.bar{height:6px;background:var(--future);border-radius:3px;overflow:hidden;margin:6px 0 2px}
+.bar>i{display:block;height:100%;background:var(--ok)}
+.muted{color:var(--ink-3);font-size:13px}
+
+/* goals */
+.goal{padding:18px 0;border-bottom:1px solid var(--rule);display:grid;grid-template-columns:44px 1fr;gap:14px}
+.goal .num{font-family:var(--serif);font-size:34px;line-height:1;color:var(--ink-3)}
+.goal h2{font-family:var(--serif);font-weight:400;font-size:22px;margin:0}
+.goal p{margin:4px 0 10px;color:var(--ink-2);max-width:75ch}
+.ms{list-style:none;padding:0;margin:0 0 10px;font-size:14px}
+.ms li{display:flex;gap:10px;padding:2px 0}
+.ms time{color:var(--ink-3);min-width:92px}
+.ms .past{color:var(--ink-3)}
+.fields{display:flex;flex-wrap:wrap;gap:10px 18px;font-size:14px}
+.fields label{display:flex;flex-direction:column;gap:3px;color:var(--ink-2)}
+.fields input{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:5px 8px;min-width:200px}
+.autos{display:flex;flex-wrap:wrap;gap:6px 20px;font-size:14px;margin-bottom:10px}
+.autos b{font-weight:600}
+
+/* log & data */
+table.log{width:100%;border-collapse:collapse;font-size:14px}
+table.log td,table.log th{text-align:left;padding:6px 8px;border-bottom:1px solid var(--rule);vertical-align:top}
+table.log th{font-weight:600;color:var(--ink-2)}
+.tag{font-size:12px;padding:1px 7px;border-radius:999px;border:1px solid currentColor}
+.tag.late{color:var(--late)} .tag.ok{color:var(--ok)} .tag.warn{color:var(--miss)}
+.tablewrap{overflow-x:auto}
+.data section{margin:22px 0;max-width:75ch}
+.data h2{font-family:var(--serif);font-weight:400;font-size:22px;margin:0 0 6px}
+.data p{color:var(--ink-2);margin:6px 0}
+.row{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;align-items:center}
+
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:9px 16px;border-radius:8px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s}
+.toast.show{opacity:1}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="brand"><b>The grind</b>, 3 November 2026 to 31 October 2027</div>
+      <nav class="tabs" aria-label="Views">
+        <button data-v="day">Today</button><button data-v="goals">Goals</button><button data-v="log">Log</button><button data-v="data">Data</button>
+      </nav>
+    </div>
+    <div class="clock" aria-live="off"><div class="t" id="clockT">--:--:--</div><div class="d" id="clockD"></div></div>
+  </header>
+  <div id="banner"></div>
+  <main id="main"></main>
+</div>
+<div class="toast" id="toast" role="status"></div>
+<script>
+/* ===== Curriculum data ===== */
+const R = {
+  neet:['NeetCode 150 roadmap','https://neetcode.io/practice'],
+  cf:['Codeforces contests','https://codeforces.com/contests'],
+  atc:['AtCoder contests','https://atcoder.jp/contests/'],
+  cses:['CSES Problem Set','https://cses.fi/problemset/'],
+  cph:['Competitive Programmer’s Handbook (PDF)','https://cses.fi/book/book.pdf'],
+  stat110:['Stat 110 course site','https://projects.iq.harvard.edu/stat110'],
+  stat110yt:['Stat 110 lectures (YouTube)','https://www.youtube.com/playlist?list=PL2SOU6wwxB0uwwH80KTQ6ht66KWxbzTIo'],
+  probbook:['Introduction to Probability (book site)','http://probabilitybook.net'],
+  ocw1806:['MIT 18.06 on OCW (psets, exams)','https://ocw.mit.edu/courses/18-06-linear-algebra-spring-2010/'],
+  yt1806:['18.06 lectures (YouTube)','https://www.youtube.com/playlist?list=PLE7DDD91010BC51F8'],
+  eola:['3Blue1Brown: Essence of linear algebra','https://www.youtube.com/playlist?list=PLZHQObOWTQDPD3MizzM2xVFitgF8hE_ab'],
+  eoc:['3Blue1Brown: Essence of calculus','https://www.youtube.com/playlist?list=PLZHQObOWTQDMsr9K-rj53DwVRMYO3t5Yr'],
+  mml:['Mathematics for Machine Learning (free PDF)','https://mml-book.github.io/'],
+  boyd:['Boyd & Vandenberghe: Convex Optimization (free PDF)','https://web.stanford.edu/~boyd/cvxbook/'],
+  zeta:['Zetamac arithmetic drill','https://arithmetic.zetamac.com/'],
+  qguide:['QuantGuide','https://www.quantguide.io/'],
+  brain:['Brainstellar puzzles','https://brainstellar.com/'],
+  jsp:['Jane Street puzzles','https://www.janestreet.com/puzzles/'],
+  ostep:['OSTEP (free book)','https://pages.cs.wisc.edu/~remzi/OSTEP/'],
+  ostephw:['OSTEP homework simulators','https://github.com/remzi-arpacidusseau/ostep-homework'],
+  cmu445:['CMU 15-445 course site','https://15445.courses.cs.cmu.edu/'],
+  cmu445yt:['CMU Database Group lectures (YouTube)','https://www.youtube.com/@CMUDatabaseGroup'],
+  xv6:['MIT 6.1810 (xv6 labs and book)','https://pdos.csail.mit.edu/6.1810/'],
+  csapp:['CS:APP lab handouts','https://csapp.cs.cmu.edu/3e/labs.html'],
+  cmu213:['CMU 15-213 course site','https://www.cs.cmu.edu/~213/'],
+  kurose:['Kurose & Ross resources','https://gaia.cs.umass.edu/kurose_ross/'],
+  beej:['Beej’s Guide to Network Programming','https://beej.us/guide/bgnet/'],
+  wrk:['wrk HTTP benchmark','https://github.com/wg/wrk'],
+  chip:['Chip Huyen (Designing ML Systems)','https://huyenchip.com/'],
+  cs329s:['Stanford CS329S','https://stanford-cs329s.github.io/'],
+  sdp:['System Design Primer','https://github.com/donnemartin/system-design-primer'],
+  mlib:['ML Interviews Book (free)','https://huyenchip.com/ml-interviews-book/'],
+  d2l:['Dive into Deep Learning (free)','https://d2l.ai/'],
+  cs229:['CS229 main notes (PDF)','https://cs229.stanford.edu/main_notes.pdf'],
+  keshav:['How to Read a Paper (Keshav, PDF)','http://ccr.sigcomm.org/online/files/p83-keshavA.pdf'],
+  z2h:['Karpathy: Neural Networks: Zero to Hero','https://www.youtube.com/playlist?list=PLAqhIrjkxbuWI23v9cThsA9GvCAUhRvKZ'],
+  buildgpt:['Karpathy: Let’s build GPT','https://www.youtube.com/watch?v=kCc8FmEb1nY'],
+  nanogpt:['nanoGPT repo','https://github.com/karpathy/nanoGPT'],
+  weng:['Lilian Weng: What are diffusion models?','https://lilianweng.github.io/posts/2021-07-11-diffusion-models/'],
+  annot:['The Annotated Diffusion Model','https://huggingface.co/blog/annotated-diffusion'],
+  cleanfid:['clean-fid','https://github.com/GaParmar/clean-fid'],
+  timm:['timm (PyTorch Image Models)','https://github.com/huggingface/pytorch-image-models'],
+  peft:['Hugging Face PEFT','https://github.com/huggingface/peft'],
+  nerf:['NeRF project page','https://www.matthewtancik.com/nerf'],
+  nerfrepo:['NeRF original repo (dataset links)','https://github.com/bmild/nerf'],
+  levels:['levels.fyi','https://www.levels.fyi/'],
+  tokyodev:['TokyoDev','https://www.tokyodev.com/'],
+  japandev:['Japan Dev','https://japan-dev.com/'],
+  iio:['interviewing.io','https://interviewing.io/'],
+  exponent:['Exponent','https://www.tryexponent.com/'],
+  lc:['LeetCode','https://leetcode.com/'],
+};
+const ax = (id) => ['arXiv ' + id, 'https://arxiv.org/abs/' + id];
+const CPA = 'https://cp-algorithms.com';
+
+const PHASES = [
+  {id:1, from:'2026-11-03', to:'2026-12-31', name:'Interview-ready', aim:'Clear the backlog of interview fundamentals so January applications start from strength.'},
+  {id:2, from:'2027-01-01', to:'2027-04-30', name:'Apply and land ¥10M+', aim:'Aggressive applications while probability and linear algebra deepen.'},
+  {id:3, from:'2027-05-01', to:'2027-08-31', name:'Depth', aim:'Quant probability, ML math, databases and operating systems.'},
+  {id:4, from:'2027-09-01', to:'2027-10-31', name:'Stretch offers', aim:'Global, quant and top-lab applications; publish your contribution.'},
+];
+
+/* ---------- NeetCode 150 ---------- */
+const NEET_RAW = {
+ 'Arrays & Hashing':'contains-duplicate valid-anagram two-sum group-anagrams top-k-frequent-elements encode-and-decode-strings* product-of-array-except-self valid-sudoku longest-consecutive-sequence',
+ 'Two Pointers':'valid-palindrome two-sum-ii-input-array-is-sorted 3sum container-with-most-water trapping-rain-water',
+ 'Sliding Window':'best-time-to-buy-and-sell-stock longest-substring-without-repeating-characters longest-repeating-character-replacement permutation-in-string minimum-window-substring sliding-window-maximum',
+ 'Stack':'valid-parentheses min-stack evaluate-reverse-polish-notation generate-parentheses daily-temperatures car-fleet largest-rectangle-in-histogram',
+ 'Binary Search':'binary-search search-a-2d-matrix koko-eating-bananas find-minimum-in-rotated-sorted-array search-in-rotated-sorted-array time-based-key-value-store median-of-two-sorted-arrays',
+ 'Linked List':'reverse-linked-list merge-two-sorted-lists linked-list-cycle reorder-list remove-nth-node-from-end-of-list copy-list-with-random-pointer add-two-numbers find-the-duplicate-number lru-cache merge-k-sorted-lists reverse-nodes-in-k-group',
+ 'Trees':'invert-binary-tree maximum-depth-of-binary-tree diameter-of-binary-tree balanced-binary-tree same-tree subtree-of-another-tree lowest-common-ancestor-of-a-binary-search-tree binary-tree-level-order-traversal binary-tree-right-side-view count-good-nodes-in-binary-tree validate-binary-search-tree kth-smallest-element-in-a-bst construct-binary-tree-from-preorder-and-inorder-traversal binary-tree-maximum-path-sum serialize-and-deserialize-binary-tree',
+ 'Tries':'implement-trie-prefix-tree design-add-and-search-words-data-structure word-search-ii',
+ 'Heap / Priority Queue':'kth-largest-element-in-a-stream last-stone-weight k-closest-points-to-origin kth-largest-element-in-an-array task-scheduler design-twitter find-median-from-data-stream',
+ 'Backtracking':'subsets combination-sum combination-sum-ii permutations subsets-ii word-search palindrome-partitioning letter-combinations-of-a-phone-number n-queens',
+ 'Graphs':'number-of-islands max-area-of-island clone-graph walls-and-gates* rotting-oranges pacific-atlantic-water-flow surrounded-regions course-schedule course-schedule-ii graph-valid-tree* number-of-connected-components-in-an-undirected-graph* redundant-connection word-ladder',
+ 'Advanced Graphs':'network-delay-time reconstruct-itinerary min-cost-to-connect-all-points swim-in-rising-water alien-dictionary* cheapest-flights-within-k-stops',
+ '1-D Dynamic Programming':'climbing-stairs min-cost-climbing-stairs house-robber house-robber-ii longest-palindromic-substring palindromic-substrings decode-ways coin-change maximum-product-subarray word-break longest-increasing-subsequence partition-equal-subset-sum',
+ '2-D Dynamic Programming':'unique-paths longest-common-subsequence best-time-to-buy-and-sell-stock-with-cooldown coin-change-ii target-sum interleaving-string longest-increasing-path-in-a-matrix distinct-subsequences edit-distance burst-balloons regular-expression-matching',
+ 'Greedy':'maximum-subarray jump-game jump-game-ii gas-station hand-of-straights merge-triplets-to-form-target-triplet partition-labels valid-parenthesis-string',
+ 'Intervals':'insert-interval merge-intervals non-overlapping-intervals meeting-rooms* meeting-rooms-ii* minimum-interval-to-include-each-query',
+ 'Math & Geometry':'rotate-image spiral-matrix set-matrix-zeroes happy-number plus-one powx-n multiply-strings detect-squares',
+ 'Bit Manipulation':'single-number number-of-1-bits counting-bits reverse-bits missing-number sum-of-two-integers reverse-integer',
+};
+const NEET = [];
+for (const [cat, s] of Object.entries(NEET_RAW)) for (let slug of s.split(' ')) {
+  const prem = slug.endsWith('*'); slug = slug.replace('*','');
+  const SPECIAL = {'powx-n':'Pow(x, n)','3sum':'3Sum','lru-cache':'LRU Cache','kth-smallest-element-in-a-bst':'Kth Smallest Element in a BST'};
+  const SMALL = ['of','a','an','and','in','to','from','the','with','by','for','at'];
+  const name = SPECIAL[slug] || slug.split('-').map((w,i) => w === 'ii' ? 'II' : (i && SMALL.includes(w)) ? w : w[0].toUpperCase()+w.slice(1)).join(' ');
+  NEET.push({cat, slug, name, prem});
+}
+
+/* ---------- Competitive programming ---------- */
+const CSES_SECTIONS = [['Introductory Problems',4],['Sorting and Searching',10],['Dynamic Programming',7],['Graph Algorithms',10],['Range Queries',6],['Tree Algorithms',5],['Mathematics',8],['String Algorithms',5],['Additional Problems',40]];
+const CF_LADDER = {'2027-01':1400,'2027-02':1500,'2027-03':1500,'2027-04':1600,'2027-05':1600,'2027-06':1700,'2027-07':1700,'2027-08':1800,'2027-09':1800,'2027-10':1900};
+const TOPICS = [
+ ['Prefix sums and difference arrays','https://usaco.guide/silver/prefix-sums'],
+ ['Binary search on the answer',CPA+'/num_methods/binary_search.html'],
+ ['Two pointers','https://usaco.guide/silver/two-pointers'],
+ ['Binary exponentiation',CPA+'/algebra/binary-exp.html'],
+ ['Euclid, extended Euclid',CPA+'/algebra/euclid-algorithm.html'],
+ ['Sieve of Eratosthenes',CPA+'/algebra/sieve-of-eratosthenes.html'],
+ ['Modular inverse',CPA+'/algebra/module-inverse.html'],
+ ['Binomial coefficients mod p',CPA+'/combinatorics/binomial-coefficients.html'],
+ ['Disjoint set union',CPA+'/data_structures/disjoint_set_union.html'],
+ ['BFS and shortest paths in grids',CPA+'/graph/breadth-first-search.html'],
+ ['DFS, cycles, components',CPA+'/graph/depth-first-search.html'],
+ ['Topological sort',CPA+'/graph/topological-sort.html'],
+ ['Dijkstra',CPA+'/graph/dijkstra.html'],
+ ['0-1 BFS',CPA+'/graph/01_bfs.html'],
+ ['Bellman-Ford',CPA+'/graph/bellman_ford.html'],
+ ['Floyd-Warshall',CPA+'/graph/all-pair-shortest-path-floyd-warshall.html'],
+ ['Minimum spanning tree (Kruskal)',CPA+'/graph/mst_kruskal.html'],
+ ['Monotonic stack and queue',CPA+'/data_structures/stack_queue_modification.html'],
+ ['Fenwick tree',CPA+'/data_structures/fenwick.html'],
+ ['Segment tree (incl. lazy propagation)',CPA+'/data_structures/segment_tree.html'],
+ ['Sparse table',CPA+'/data_structures/sparse-table.html'],
+ ['Knapsack DP',CPA+'/dynamic_programming/knapsack.html'],
+ ['Longest increasing subsequence',CPA+'/sequences/longest_increasing_subsequence.html'],
+ ['Bitmask DP','https://usaco.guide/gold/dp-bitmasks'],
+ ['DP on trees','https://usaco.guide/gold/dp-trees'],
+ ['LCA with binary lifting',CPA+'/graph/lca_binary_lifting.html'],
+ ['Strongly connected components',CPA+'/graph/strongly-connected-components.html'],
+ ['Bridges and articulation points',CPA+'/graph/bridge-searching.html'],
+ ['Bipartite check',CPA+'/graph/bipartite-check.html'],
+ ['Prefix function (KMP)',CPA+'/string/prefix-function.html'],
+ ['Z-function',CPA+'/string/z-function.html'],
+ ['String hashing',CPA+'/string/string-hashing.html'],
+ ['Inclusion-exclusion',CPA+'/combinatorics/inclusion-exclusion.html'],
+ ['Euler totient',CPA+'/algebra/phi-function.html'],
+ ['Ternary search',CPA+'/num_methods/ternary_search.html'],
+ ['Sqrt decomposition and Mo’s algorithm',CPA+'/data_structures/sqrt_decomposition.html'],
+ ['Divide and conquer DP',CPA+'/dynamic_programming/divide-and-conquer-dp.html'],
+ ['Max flow (Edmonds-Karp)',CPA+'/graph/edmonds_karp.html'],
+ ['Sprague-Grundy and Nim',CPA+'/game_theory/sprague-grundy-nim.html'],
+ ['Convex hull',CPA+'/geometry/convex-hull.html'],
+ ['Linear Diophantine equations',CPA+'/algebra/linear-diophantine-equation.html'],
+];
+
+/* ---------- Stat 110 ---------- */
+const STAT_LECT = ['Probability and counting','Story proofs, axioms of probability','Birthday problem, properties of probability','Conditional probability','Conditioning continued, law of total probability','Monty Hall, Simpson’s paradox','Gambler’s ruin and random variables','Random variables and their distributions','Expectation, indicator RVs, linearity','Expectation continued','The Poisson distribution','Discrete vs continuous, the uniform','Normal distribution','Location, scale, LOTUS','Midterm review','Exponential distribution','Moment generating functions','MGFs continued','Joint, conditional, marginal distributions','Multinomial and Cauchy','Covariance and correlation','Transformations and convolutions','Beta distribution','Gamma distribution and Poisson process','Order statistics and conditional expectation','Conditional expectation continued','Conditional expectation given an RV','Inequalities','Law of large numbers and CLT','Chi-square, Student-t, multivariate normal','Markov chains','Markov chains continued','Markov chains continued further','A look ahead'];
+const STAT_CH = [1,1,1,2,2,2,3,3,4,4,4,5,5,5,0,5,6,6,7,7,7,8,8,8,9,9,9,10,10,10,11,11,11,0];
+const CH_NAMES = {1:'Probability and counting',2:'Conditional probability',3:'Random variables',4:'Expectation',5:'Continuous random variables',6:'Moments',7:'Joint distributions',8:'Transformations',9:'Conditional expectation',10:'Inequalities and limit theorems',11:'Markov chains'};
+
+/* ---------- 18.06 ---------- */
+const L1806 = ['Geometry of linear equations','Elimination with matrices','Multiplication and inverse matrices','Factorization into A = LU','Transposes, permutations, spaces','Column space and nullspace','Solving Ax = 0: pivot variables','Solving Ax = b: row reduced form','Independence, basis, dimension','The four fundamental subspaces','Matrix spaces; rank 1; small-world graphs','Graphs, networks, incidence matrices','Quiz 1 review','Orthogonal vectors and subspaces','Projections onto subspaces','Projection matrices and least squares','Orthogonal matrices and Gram-Schmidt','Properties of determinants','Determinant formulas and cofactors','Cramer’s rule, inverse matrix, volume','Eigenvalues and eigenvectors','Diagonalization and powers of A','Differential equations and exp(At)','Markov matrices; Fourier series','Quiz 2 review','Symmetric matrices and positive definiteness','Complex matrices; fast Fourier transform','Positive definite matrices and minima','Similar matrices and Jordan form','Singular value decomposition','Linear transformations and their matrices','Change of basis; image compression','Left and right inverses; pseudoinverse','Final course review'];
+
+/* ---------- ML math (Jul–Aug) ---------- */
+const MATHOPT = [
+ ['Essence of calculus, videos 1–6 at 1.5×','Depth: intuition only; pause to sketch each picture.',[R.eoc]],
+ ['Essence of calculus, videos 7–12','Depth: intuition; write one-line summaries.',[R.eoc]],
+ ['MML 5.1–5.2: derivatives, partial derivatives, gradients','Depth: do every in-text example by hand.',[R.mml]],
+ ['MML 5.3: gradients of vector-valued functions (Jacobian)','Depth: derive the Jacobian of softmax yourself.',[R.mml]],
+ ['MML 5.4–5.5: gradients of matrices, useful identities','Depth: verify 3 identities numerically in NumPy.',[R.mml]],
+ ['MML 5.6: backpropagation and automatic differentiation','Depth: derive backprop for a 2-layer MLP on paper.',[R.mml]],
+ ['MML 5.7–5.8: Hessians, Taylor series, linearization','Depth: compute the Hessian of logistic loss.',[R.mml]],
+ ['Derivation day: softmax + cross-entropy gradient, attention backward pass','Depth: no notes; check against autograd.',[R.mml]],
+ ['MML 7.1: gradient descent, step size, momentum','Depth: implement GD vs momentum on a quadratic; plot.',[R.mml]],
+ ['MML 7.2: constrained optimization, Lagrange multipliers','Depth: solve 3 textbook problems.',[R.mml]],
+ ['MML 7.3: convex optimization overview','Depth: read fully; list definitions.',[R.mml]],
+ ['Boyd ch. 2.1–2.3: affine and convex sets, operations that preserve convexity','Depth: read; do 3 exercises from ch. 2.',[R.boyd]],
+ ['Boyd ch. 2.4–2.6: generalized inequalities, separating hyperplanes, dual cones','Depth: skim proofs, keep statements.',[R.boyd]],
+ ['Boyd ch. 3.1–3.2: convex functions, operations preserving convexity','Depth: do 4 exercises.',[R.boyd]],
+ ['Boyd ch. 3.3–3.5: conjugates, quasiconvex, log-concave','Depth: conjugate of 3 common functions by hand.',[R.boyd]],
+ ['Boyd ch. 4.1–4.3: optimization problems, convex problems, LP','Depth: formulate 2 ML problems as convex programs.',[R.boyd]],
+ ['Boyd ch. 4.4–4.6: QP, SOCP, geometric programming, SDP (overview)','Depth: skim; recognize forms.',[R.boyd]],
+ ['Boyd ch. 5.1–5.2: Lagrangian and the dual problem','Depth: derive the dual of least squares with a norm constraint.',[R.boyd]],
+ ['Boyd ch. 5.3–5.5: geometric interpretation, optimality conditions (KKT)','Depth: derive SVM dual via KKT on paper.',[R.boyd]],
+ ['Derivation day: PCA via Lagrange multipliers; least squares via projections (link to 18.06)','Depth: closed book.',[R.mml]],
+ ['Derivation day: Adam update with bias correction; why it works','Depth: implement from scratch and compare with torch.optim.Adam.',[R.mml]],
+ ['Derivation day: variance of scaled dot-product attention; Xavier/Kaiming init','Depth: derive the 1/√d factor.',[R.mml]],
+ ['MML ch. 6 recap: Gaussian identities (conditioning, marginalization)','Depth: derive the conditional of a 2D Gaussian.',[R.mml]],
+ ['MML ch. 9 linear regression: MLE, MAP, Bayesian view','Depth: derive ridge as MAP.',[R.mml]],
+ ['MML ch. 10 PCA: full derivation and implementation','Depth: implement with SVD and compare.',[R.mml]],
+ ['Self-test: 10 derivations from this block, 60 minutes, closed book','Depth: grade yourself; redo misses Sunday.',[R.mml]],
+];
+
+/* ---------- Quant ---------- */
+const GREEN = [
+ ['Ch. 2 Brain teasers: problem simplification','Brain teasers'],['Ch. 2: logic reasoning',''],['Ch. 2: thinking out of the box',''],['Ch. 2: application of symmetry',''],['Ch. 2: series summation',''],['Ch. 2: pigeonhole principle',''],['Ch. 2: modular arithmetic',''],['Ch. 2: math induction',''],['Ch. 2: proof by contradiction',''],
+ ['Ch. 4 Probability: basic definitions and set operations',''],['Ch. 4: combinatorial analysis',''],['Ch. 4: conditional probability and Bayes',''],['Ch. 4: discrete and continuous distributions',''],['Ch. 4: expected value, variance, covariance',''],['Ch. 4: order statistics',''],
+ ['Ch. 3 Calculus: limits and derivatives',''],['Ch. 3: integration',''],['Ch. 3: partial derivatives and multiple integrals',''],['Ch. 3: important calculus methods',''],['Ch. 3: ordinary differential equations',''],['Ch. 3: linear algebra',''],
+ ['Ch. 5 Stochastic processes: Markov chains',''],['Ch. 5: martingales and random walks',''],['Ch. 5: dynamic programming',''],['Ch. 5: Brownian motion and stochastic calculus (read, do half)',''],
+ ['Ch. 7 Algorithms: algorithms section',''],['Ch. 7: the power of two',''],['Ch. 7: numerical methods',''],
+];
+const QUANT_P4 = [
+ ['QuantGuide: 8 probability problems (medium)','Time-box 10 min each; write EV reasoning before computing.',[R.qguide]],
+ ['Brainstellar: 6 puzzles (medium/hard)','Explain each answer out loud as if to an interviewer.',[R.brain]],
+ ['Timed mixed set: 10 probability questions in 30 minutes (from your Green Book misses)','Grade strictly. Below 7/10 means re-solve tomorrow.',[]],
+ ['QuantGuide: 6 statistics / expectation problems','Focus: conditional expectation, linearity tricks.',[R.qguide]],
+ ['Market-making drill: make a two-sided market on 10 estimation questions; track width and accuracy','Solo is fine; later with a friend.',[]],
+ ['Jane Street puzzle of the month: 60-minute attempt','Write up your partial approach even if unsolved.',[R.jsp]],
+ ['Brainstellar: 6 puzzles (hard)','Prefer ones tagged probability.',[R.brain]],
+ ['Markov chain / random walk set: 5 problems','Hitting times, gambler’s ruin variants.',[R.qguide]],
+];
+
+/* ---------- ML fundamentals (Phase 1 + January) ---------- */
+const MLF = [
+ ['Bias–variance, under/overfitting, regularization (L1/L2, early stopping)',[R.cs229,R.mlib]],
+ ['Classification metrics: precision, recall, F1, ROC-AUC vs PR-AUC, calibration',[R.mlib]],
+ ['Validation: k-fold, time-series splits, data leakage patterns',[R.mlib]],
+ ['Linear and logistic regression from MLE (derive both losses)',[R.cs229]],
+ ['Gradient descent variants: SGD, momentum, RMSProp, Adam; learning-rate schedules',[R.d2l]],
+ ['Backprop by hand: MLP forward/backward with shapes',[R.d2l]],
+ ['CNNs: receptive field, strides, padding, parameter counts; ResNet idea',[R.d2l]],
+ ['Normalization: BatchNorm vs LayerNorm vs GroupNorm; train vs eval behavior',[R.d2l]],
+ ['Attention and transformers: shapes, masking, complexity, positional encodings',[R.d2l]],
+ ['Tokenization (BPE), embeddings, KV cache, decoding (greedy, top-k, top-p, temperature)',[R.mlib]],
+ ['Diffusion basics: forward/reverse process, guidance, latent diffusion',[R.weng]],
+ ['Evaluating generative models: FID, CLIP score, human eval pitfalls',[R.mlib]],
+ ['Trees and boosting: decision trees, random forest, gradient boosting (XGBoost)',[R.cs229]],
+ ['Unsupervised: k-means, GMM/EM, PCA via SVD',[R.cs229]],
+ ['Embeddings and retrieval: contrastive loss, ANN search (FAISS, HNSW)',[R.mlib]],
+ ['Class imbalance: resampling, focal loss, threshold tuning',[R.mlib]],
+ ['A/B testing: hypothesis tests, p-values, power, sample size',[R.mlib]],
+ ['Distributed training: data vs model vs pipeline parallel; mixed precision',[R.d2l]],
+ ['Inference optimization: quantization, batching, ONNX/TensorRT/Triton, latency vs throughput',[R.mlib]],
+ ['Monitoring: data drift, concept drift, feedback loops',[R.chip]],
+ ['Computer vision tasks: detection (anchors, NMS), segmentation (U-Net, SAM)',[R.d2l]],
+ ['Behavioral: write 5 STAR stories (ownership, conflict, failure, ambiguity, impact)',[]],
+ ['Behavioral: “Tell me about yourself” in 90 seconds; record and refine',[]],
+ ['Explain your floorplan-to-3D pipeline in 3 depths: 1 min, 5 min, 15 min deep dive',[]],
+ ['Explain your multi-region editing system: trade-offs, cost model, failure modes',[]],
+ ['Explain your 5-service architecture: queueing, GPU scheduling, scaling, on-call issues',[]],
+];
+
+/* ---------- CS fundamentals queue ---------- */
+const OSTEP_CH = [['4 Processes','cpu-intro'],['5 Process API','cpu-api'],['6 Limited direct execution','cpu-mechanisms'],['7 Scheduling','cpu-sched'],['8 MLFQ','cpu-sched-mlfq'],['9 Lottery scheduling','cpu-sched-lottery'],['13 Address spaces','vm-intro'],['14 Memory API','vm-api'],['15 Address translation','vm-mechanism'],['16 Segmentation','vm-segmentation'],['17 Free-space management','vm-freespace'],['18 Paging','vm-paging'],['19 TLBs','vm-tlbs'],['20 Smaller page tables','vm-smalltables'],['21 Swapping: mechanisms','vm-beyondphys'],['22 Swapping: policies','vm-beyondphys-policy'],['26 Concurrency intro','threads-intro'],['27 Thread API','threads-api'],['28 Locks','threads-locks'],['29 Locked data structures','threads-locks-usage'],['30 Condition variables','threads-cv'],['31 Semaphores','threads-sema'],['32 Concurrency bugs','threads-bugs'],['33 Event-based concurrency','threads-events'],['36 I/O devices','file-devices'],['37 Hard disk drives','file-disks'],['39 Files and directories','file-intro'],['40 File system implementation','file-implementation'],['41 FFS','file-ffs'],['42 Crash consistency: journaling','file-journaling'],['43 Log-structured FS','file-lfs']];
+const CS = [];
+OSTEP_CH.forEach(([t,f],i) => {
+  CS.push({t:'OSTEP ch. '+t, d:'Read the chapter fully. Answer its homework questions (use the simulator where provided). Write 5 bullet notes in your own words.', l:[['OSTEP: '+t,'https://pages.cs.wisc.edu/~remzi/OSTEP/'+f+'.pdf'],R.ostephw], tag:'cs'});
+  if ([5,15,23,30].includes(i)) CS.push({t:'OSTEP review: explain the last section to an imaginary interviewer; write a 1-page cheat sheet', d:'Depth: interview-level (“What happens on a page fault?”, “mutex vs semaphore?”).', l:[R.ostep], tag:'cs'});
+});
+const DB_LECT = ['Relational model and algebra','Modern SQL (window functions, CTEs)','Database storage: pages and files','Storage: tuples, log-structured storage','Storage models and compression','Buffer pool management','Hash tables','B+ trees','Index concurrency control','Sorting and aggregation','Join algorithms','Query execution: processing models','Query execution: parallelism','Query planning and optimization','Concurrency control theory','Two-phase locking','Timestamp ordering','Multi-version concurrency control','Logging','Recovery (ARIES)'];
+DB_LECT.forEach((t,i) => {
+  CS.push({t:'CMU 15-445 lecture: '+t, d:'Watch the lecture for this topic (any recent semester) at 1.25×, read the matching notes, write 5 bullets. Depth: be able to whiteboard the core data structure or protocol.', l:[R.cmu445,R.cmu445yt], tag:'cs'});
+  if (i===1) for (let k=1;k<=4;k++) CS.push({t:`15-445 Project 0 (C++ primer), session ${k}/4`, d:'Follow the current semester’s handout. Use the public autograder if offered; otherwise rely on provided tests.', l:[R.cmu445], tag:'cs'});
+  if (i===5) for (let k=1;k<=8;k++) CS.push({t:`15-445 Project 1 (buffer pool manager), session ${k}/8`, d:'Implement replacer, disk scheduler, buffer pool. Pass all local tests before moving on.', l:[R.cmu445], tag:'cs'});
+  if (i===8) for (let k=1;k<=12;k++) CS.push({t:`15-445 Project 2 (index: B+ tree or hash index per semester), session ${k}/12`, d:'Hardest project. Draw the structure on paper before coding each operation. Concurrency last.', l:[R.cmu445], tag:'cs'});
+});
+[['util','Unix utilities (sleep, pingpong, primes, find, xargs)',4],['syscall','System calls (trace, sysinfo)',4],['pgtbl','Page tables',5],['traps','Traps (backtrace, alarm)',5],['cow','Copy-on-write fork',5],['lock','Locks (memory allocator, buffer cache)',5]].forEach(([id,t,n]) => {
+  for (let k=1;k<=n;k++) CS.push({t:`xv6 lab “${id}”: ${t}, session ${k}/${n}`, d: k===1 ? 'First read the matching xv6 book chapter, then set up and start the lab.' : 'Continue the lab; run make grade before moving on.', l:[R.xv6], tag:'cs'});
+});
+[['CS:APP ch. 2: representing and manipulating information (2.1–2.3)',1],['CS:APP ch. 2: floating point (2.4)',1],['CS:APP ch. 3: machine-level programs (3.1–3.6)',1],['CS:APP ch. 3: procedures, arrays, structs (3.7–3.9)',1],['CS:APP ch. 3: buffer overflows, x86-64 floating point (3.10–3.11)',1]].forEach(([t]) => CS.push({t, d:'Read with the practice problems (solutions are at the end of the chapter).', l:[R.cmu213], tag:'cs'}));
+for (let k=1;k<=5;k++) CS.push({t:`Bomb lab, session ${k}/5`, d:'Defuse phases with gdb. No walkthroughs.', l:[R.csapp], tag:'cs'});
+[['CS:APP ch. 6: memory hierarchy, locality (6.1–6.3)'],['CS:APP ch. 6: cache memories, writing cache-friendly code (6.4–6.6)']].forEach(([t]) => CS.push({t, d:'Read with practice problems.', l:[R.cmu213], tag:'cs'}));
+for (let k=1;k<=5;k++) CS.push({t:`Cache lab, session ${k}/5`, d:'Part A simulator, Part B blocked transpose. Hit full marks.', l:[R.csapp], tag:'cs'});
+['ch. 1: Internet, delay, loss, throughput, layering','ch. 2: application layer: HTTP, DNS, sockets','ch. 3: transport: UDP, reliable data transfer, TCP','ch. 3: TCP congestion control','ch. 4: network layer: IP, routing basics','ch. 5–6 skim: routing algorithms, link layer, a day in the life of a web request'].forEach(t => CS.push({t:'Kurose & Ross '+t, d:'Read; answer the end-of-chapter review questions you can’t answer instantly.', l:[R.kurose], tag:'cs'}));
+['Beej’s guide: sockets API, getaddrinfo, a TCP client and server','Beej’s guide: blocking vs non-blocking, poll()','Beej’s guide: serialization, partial sends'].forEach(t => CS.push({t, d:'Type every example and run it.', l:[R.beej], tag:'cs'}));
+['Blocking echo server in C++','HTTP/1.1 request parser with tests','Serve static files, correct status codes and headers','Thread-pool server','epoll non-blocking event loop','Keep-alive and timeouts','Benchmark with wrk; record requests/s and p99','Profile (perf) and optimize the hottest path','Second optimization pass and re-benchmark','Write-up: architecture, numbers, lessons; push to GitHub'].forEach((t,i) => CS.push({t:`C++ HTTP server ${i+1}/10: ${t}`, d:'Commit at the end of each session with a short message.', l:i===6?[R.wrk]:[R.beej], tag:'cs'}));
+
+/* ---------- Papers ---------- */
+const PAPERS = [
+ ['Attention Is All You Need','1706.03762'],['Neural Machine Translation by Jointly Learning to Align and Translate','1409.0473'],['Sequence to Sequence Learning with Neural Networks','1409.3215'],['Layer Normalization','1607.06450'],['Adam','1412.6980'],['Deep Residual Learning (ResNet)','1512.03385'],['Batch Normalization','1502.03167'],['Language Models are Few-Shot Learners (GPT-3)','2005.14165'],['BERT','1810.04805'],['RoFormer (RoPE)','2104.09864'],['On Layer Normalization in the Transformer Architecture','2002.04745'],['GELU','1606.08415'],['Scaling Laws for Neural Language Models','2001.08361'],['Training Compute-Optimal LLMs (Chinchilla)','2203.15556'],['FlashAttention','2205.14135'],['LLaMA','2302.13971'],['GQA','2305.13245'],
+ ['Auto-Encoding Variational Bayes (VAE)','1312.6114'],['Generative Adversarial Networks','1406.2661'],['U-Net','1505.04597'],['Denoising Diffusion Probabilistic Models','2006.11239'],['DDIM','2010.02502'],['Score-Based Generative Modeling through SDEs','2011.13456'],['Diffusion Models Beat GANs','2105.05233'],['Classifier-Free Diffusion Guidance','2207.12598'],['Latent Diffusion Models','2112.10752'],['Elucidating the Design Space of Diffusion (EDM)','2206.00364'],['ControlNet','2302.05543'],['SDEdit','2108.01073'],['RePaint (inpainting)','2201.09865'],['InstructPix2Pix','2211.09800'],['DreamBooth','2208.12242'],['Prompt-to-Prompt','2208.01626'],['SDXL','2307.01952'],
+ ['An Image is Worth 16x16 Words (ViT)','2010.11929'],['Swin Transformer','2103.14030'],['DeiT','2012.12877'],['Masked Autoencoders (MAE)','2111.06377'],['SimCLR','2002.05709'],['DINO','2104.14294'],['DINOv2','2304.07193'],['CLIP','2103.00020'],['LoRA','2106.09685'],['QLoRA','2305.14314'],['ConvNeXt','2201.03545'],['Segment Anything','2304.02643'],['SAM 2','2408.00714'],['LLaVA','2304.08485'],['BLIP-2','2301.12597'],['DETR','2005.12872'],['Distilling the Knowledge in a Neural Network','1503.02531'],
+ ['NeRF','2003.08934'],['Mip-NeRF','2103.13415'],['Instant-NGP','2201.05989'],['Plenoxels','2112.05131'],['3D Gaussian Splatting','2308.04079'],['MiDaS','1907.01341'],['Depth Anything','2401.10891'],['DUSt3R','2312.14132'],['Zero-1-to-3','2303.11328'],['DreamFusion','2209.14988'],['Mask R-CNN','1703.06870'],['Feature Pyramid Networks','1612.03144'],['Faster R-CNN','1506.01497'],['YOLO v1','1506.02640'],['MobileNets','1704.04861'],['EfficientNet','1905.11946'],['Delving Deep into Rectifiers (Kaiming init)','1502.01852'],
+ ['Speculative Decoding','2211.17192'],['PagedAttention (vLLM)','2309.06180'],['FlashAttention-2','2307.08691'],['LLM.int8()','2208.07339'],['GPTQ','2210.17323'],['AWQ','2306.00978'],['Mixed Precision Training','1710.03740'],['Megatron-LM','1909.08053'],['ZeRO','1910.02054'],['Switch Transformers','2101.03961'],['Mixtral of Experts','2401.04088'],['Mamba','2312.00752'],['Longformer','2004.05150'],['Sparse Transformers','1904.10509'],['RMSNorm','1910.07467'],['GLU Variants Improve Transformer','2002.05202'],['Decoupled Weight Decay (AdamW)','1711.05101'],['SGDR (cosine restarts)','1608.03983'],
+ ['Flow Matching for Generative Modeling','2210.02747'],['Rectified Flow','2209.03003'],['Scaling Rectified Flow Transformers (SD3)','2403.03206'],['Diffusion Transformers (DiT)','2212.09748'],['Consistency Models','2303.01469'],['InstructGPT','2203.02155'],['Deep RL from Human Preferences','1706.03741'],['PPO','1707.06347'],['Direct Preference Optimization','2305.18290'],['Constitutional AI','2212.08073'],['Chain-of-Thought Prompting','2201.11903'],['ReAct','2210.03629'],['Retrieval-Augmented Generation','2005.11401'],['Toolformer','2302.04761'],['The Lottery Ticket Hypothesis','1803.03635'],['Deep Double Descent','1912.02292'],['Grokking','2201.02177'],['Rethinking Generalization','1611.03530'],['Neural ODEs','1806.07366'],
+];
+
+/* ---------- Reproductions ---------- */
+const REPROS = [
+ {from:'2026-11-03', name:'R1: GPT from scratch', paper:'1706.03762', target:'Char-level Shakespeare with your own from-scratch transformer: validation loss within 0.05 of the shakespeare_char result reported in the nanoGPT README (about 1.47).', links:[R.z2h,R.buildgpt,R.nanogpt],
+  m:['micrograd: scalar autograd engine (Zero to Hero video 1); verify gradients against PyTorch','makemore parts 1–2: bigram and MLP language models','makemore parts 3–4: activation/BatchNorm diagnostics; manual backprop','Watch “Let’s build GPT”, then close it and write multi-head attention from the paper’s equations','Full decoder-only transformer from scratch: causal mask, pre-LN blocks, weight tying, shape tests','Train on tiny Shakespeare (char); log curves; reach the target','Ablations: no positional encoding, 1 vs 6 heads, post-LN vs pre-LN, dropout; results table','README with results table, plots and what broke; push to GitHub','Buffer: catch up; derive the 1/√d scaling argument on paper']},
+ {from:'2027-01-01', name:'R2: DDPM', paper:'2006.11239', target:'Recognizable MNIST samples; CIFAR-10 small U-Net with FID ≤ 30 on 10k samples (pre-declared, compute-limited); DDPM 1000 steps vs DDIM 50 steps compared.', links:[R.weng,R.annot,R.cleanfid],
+  m:['Derive q(x_t|x_0) and the simplified loss on paper','Noise schedule and forward process; SNR sanity plots','Small U-Net: time embeddings, residual blocks, attention at 16×16','Train on MNIST; sample; fix bugs','CIFAR-10: EMA weights, mixed precision, longer run','DDIM sampler; steps vs quality curve','FID on 10k samples with clean-fid; log it','Classifier-free guidance on class labels; guidance-scale grid','README, results, GitHub']},
+ {from:'2027-03-01', name:'R3: ViT and LoRA', paper:'2010.11929', target:'ViT-Tiny from scratch on CIFAR-10 ≥ 85% test accuracy; LoRA fine-tune of a pretrained ViT-B/16 within 1 point of full fine-tuning with < 1% trainable parameters.', links:[R.timm,R.peft],
+  m:['Patch embedding, class token, positional embeddings; shape tests','Full ViT encoder from scratch; baseline on CIFAR-10','Augmentation and regularization (RandAugment, Mixup/CutMix, label smoothing)','Hit the accuracy target; visualize attention maps','Write a LoRA layer yourself (no PEFT); wrap qkv and proj','Fine-tune a pretrained ViT: full vs LoRA rank 4/8/16 on a small dataset','Cross-check against PEFT; implement weight merging','Results table: params, memory, accuracy, time','README and GitHub']},
+ {from:'2027-05-01', name:'R4: NeRF', paper:'2003.08934', target:'Lego scene (nerf_synthetic) at 400×400: test PSNR ≥ 28 dB (the paper reports about 32.5 dB at full resolution).', links:[R.nerf,R.nerfrepo],
+  m:['Camera models and ray generation; visualize rays','Positional encoding, MLP, volume rendering; unit-test the renderer','Tiny NeRF at low resolution; debug','Hierarchical sampling (coarse + fine)','Full 400×400 training; PSNR on test views','Speed: try a simple multiresolution hash encoding (Instant-NGP idea)','Render a 360° video and depth maps','Read 3DGS; write NeRF vs 3DGS notes tied to your work','README and GitHub']},
+ {from:'2027-07-01', name:'R5: Speculative decoding', paper:'2211.17192', target:'Output distribution preserved (exact for greedy) and ≥ 1.5× wall-clock speedup at batch size 1 with a small draft model from the same family.', links:[ax('2211.17192')],
+  m:['Your own KV-cache decoding loop for a small open model (e.g. GPT-2 weights)','Benchmark harness: tokens/s, p50/p95 latency','Speculative decoding: draft k tokens, verify, rejection sampling per the paper','Correctness: exact match for greedy, distribution test for sampling','Tune k; acceptance rate vs speedup plot','Int8 weight-only quantization of the draft; re-measure','Compare against Hugging Face assisted generation','Write-up with plots','Buffer']},
+ {from:'2027-09-01', name:'R6: Flow matching', paper:'2210.02747', target:'Using your R2 U-Net on CIFAR-10: match your own DDPM FID with ≤ 1/10 of the sampling steps.', links:[ax('2210.02747'),ax('2209.03003')],
+  m:['Derive the conditional flow matching objective; compare with the diffusion loss','2D toy data (moons, checkerboard); visualize trajectories','Port the R2 U-Net; train CFM on CIFAR-10','ODE samplers (Euler, Heun); steps vs FID','Rectified flow reflow step; measure path straightness','Class conditioning and CFG','Head-to-head table vs R2 DDPM/DDIM','README; consider turning it into a blog post (goal 9)','Buffer']},
+];
+
+/* ---------- ML system design ---------- */
+const SD_TOPICS = ['Image inpainting/editing service at scale (your own domain)','Visual product search','Personalized feed recommendation','Ad click-through prediction','RAG search over company documents','Content moderation and deepfake detection','Real-time fraud detection','LLM serving platform (batching, caching, autoscaling)','Evaluation platform for generative models','ETA prediction','Low-latency market-data feature pipeline','Typeahead / autocomplete'];
+const SD_STEPS = [
+ ['Requirements and metrics','Write the problem statement, functional and non-functional requirements, scale numbers, offline and online metrics.'],
+ ['Data and model','Data sources, labeling, features, baseline model, candidate models and why.'],
+ ['Serving and scale','Architecture diagram, latency budget, batching, caching, failure modes, cost.'],
+ ['Monitoring and mock','Drift, A/B testing, feedback loop. Then present the full design out loud in 35 minutes and record yourself.'],
+ ['Final write-up','Two-page design doc into your design portfolio. Note the 3 weakest parts of your answer.'],
+];
+
+/* ---------- Contribution (goal 9) ---------- */
+const CONTRIB = [
+ 'List 5 contribution ideas from your work and reproductions (e.g. an open-source eval toolkit for image editing, a floorplan raster-to-vector benchmark, a diffusion-vs-flow write-up). Score each on usefulness and feasibility.',
+ 'Pick one. Write a one-page proposal: problem, who uses it, MVP, what counts as external validation.',
+ 'Survey prior work and tools (10 links); write down the gap you fill.',
+ 'Repo skeleton, license, README draft, 8-week roadmap. If you plan an arXiv preprint, check the endorsement requirement now.',
+];
+for (let k=1;k<=18;k++) CONTRIB.push(`Build week ${k}/18: ship one usable increment, update the changelog, post a short progress note.`);
+CONTRIB.push('Docs and examples: a newcomer can use it in 10 minutes.','Benchmarks and tests; CI green.','Get feedback from 3 people outside your team; list fixes.','Fix the top issues from feedback.','Publish v1: release, preprint or long-form post.','Share it: X, LinkedIn, Hacker News, r/MachineLearning, relevant Discords.','Respond to every issue and comment; ship a patch.','Follow-up post: what you learned, numbers so far.','Record the validation signal for goal 9 (stars, citations, users, acceptance).');
+
+/* ---------- Career ---------- */
+const CAREER_P1 = [
+ ['Story bank: STAR stories for 5 projects (floorplan pipeline, multi-region editing, room reconstruction, deepfake detector, owning 5 services)','Each story: situation in 2 lines, your decisions, numbers, what you’d do differently.',[]],
+ ['Resume v2 for ML/AI engineer roles: quantify every bullet, one page, ATS-clean; update LinkedIn to match','Ask 2 engineers you respect to review it.',[]],
+ ['Market research: build a target list of 40 companies in 3 tiers (Tokyo + global firms with Japan offices); note comp ranges','Tier 1 = dream, tier 2 = strong upgrade, tier 3 = practice.',[R.levels,R.tokyodev,R.japandev]],
+ ['Write the eval-framework impact summary (metrics, before/after) for your resume; agree a finish date at work','Aim to have a result you can quote by mid-December.',[]],
+ ['Practice applications: apply to 3 tier-3 roles','Purpose is interview reps, not the offer.',[R.tokyodev,R.japandev]],
+ ['Practice applications: 2 more; set up an application tracker (company, stage, date, next step)','Keep it in your notes for this day or a spreadsheet.',[]],
+ ['Prepare: “tell me about yourself”, why you’re leaving, salary script (≥ ¥10M), visa status explanation','Say each out loud 3 times.',[]],
+ ['Resume v3 using lessons from practice interviews; draft referral messages to 10 people','Personalize every message.',[]],
+ ['Year-end review: what worked in Phase 1, what to cut in Phase 2','Write it in today’s notes.',[]],
+];
+
+/* ---------- Goals ---------- */
+const GOALS = [
+ {n:1, t:'Compensation', s:'Offer ≥ ¥10M (or equivalent anywhere) signed by 30 Apr 2027; offer paying ≥ $125K/yr after tax in any country by 31 Oct 2027.', ms:[['2026-12-31','Practice applications sent (3–5)'],['2027-04-30','Stage 1: ¥10M+ offer signed'],['2027-10-31','Stage 2: ≥ $125K/yr after tax offer signed']], fields:[['offer1','Best offer so far'],['offer2','Stretch offer status']]},
+ {n:2, t:'Competitive programming', s:'Two rated contests a week, upsolve everything. Codeforces Expert (1600+) by May 2027; Candidate Master (1900+) by Oct 2027 as the stretch.', ms:[['2027-05-31','Codeforces ≥ 1600'],['2027-10-31','Codeforces ≥ 1900 (stretch)']], fields:[['cf','Current Codeforces rating']]},
+ {n:3, t:'Interview-speed solving', s:'Unseen mediums ≤ 20 min, hards ≤ 45 min, 80%+ over the last 20 attempts. From March: 8 of last 10 coding mocks passed.', ms:[['2027-03-31','80% timed success rate'],['2027-10-31','8/10 recent coding mocks passed']], fields:[['timed','Timed success, last 20 (%)'],['mocks','Coding mocks passed / last 10']]},
+ {n:4, t:'Probability and statistics', s:'Blitzstein–Hwang exercises by Apr 2027; Green Book and Fifty Challenging Problems by Aug 2027; 8/10 quant mocks by Oct 2027.', ms:[['2027-04-30','Stat 110 complete'],['2027-08-31','Green Book + Fifty complete'],['2027-10-31','8/10 quant mocks']], fields:[['qmocks','Quant mocks passed / 10']], auto:['stat','green','fifty']},
+ {n:5, t:'Math for ML', s:'MIT 18.06 with problem sets by Jun 2027; multivariable calculus and optimization by Aug 2027.', ms:[['2027-06-30','18.06 complete'],['2027-08-31','Calculus + optimization block complete']], auto:['la','opt']},
+ {n:6, t:'Research papers', s:'Read 2 papers a week (~100) with summaries; reproduce 6 papers on GitHub against pre-declared targets.', ms:[['2026-12-31','R1 GPT from scratch'],['2027-02-28','R2 DDPM'],['2027-04-30','R3 ViT + LoRA'],['2027-06-30','R4 NeRF'],['2027-08-31','R5 Speculative decoding'],['2027-10-31','R6 Flow matching']], auto:['paper'], fields:[['repros','Reproductions completed (0–6)']]},
+ {n:7, t:'ML system design', s:'12 full designs, one a month; pass 4 of 5 mock design interviews by Mar 2027.', ms:[['2027-03-31','4/5 design mocks passed']], auto:['sd'], fields:[['sdmocks','Design mocks passed / 5']]},
+ {n:8, t:'CS fundamentals', s:'Builds: 15-445 projects, xv6 labs, CS:APP labs, a C++ HTTP server with benchmarks.', ms:[['2027-10-31','All four builds done']], auto:['cs']},
+ {n:9, t:'One original contribution', s:'A public artifact that someone else validates: preprint/workshop paper, tool with real users (~200+ stars), or a write-up with meaningful reach.', ms:[['2027-04-30','Idea chosen and scoped'],['2027-10-31','Published and validated']], fields:[['contrib','Status / validation signal']]},
+];
+
+/* ===== Plan generator ===== */
+const pad = n => String(n).padStart(2,'0');
+const keyOf = d => d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const parseKey = k => { const [y,m,d] = k.split('-').map(Number); return new Date(y, m-1, d); };
+const addDays = (d,n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
+const START_KEY = PHASES[0].from, END_KEY = PHASES[PHASES.length-1].to;
+
+function queue(items, filler) {
+  let i = 0;
+  return { next(){ if (i < items.length) return items[i++]; return typeof filler === 'function' ? filler(i++ - items.length) : filler; },
+           get done(){ return i >= items.length; }, get i(){ return i; } };
+}
+
+function buildPlan() {
+  /* --- unit lists --- */
+  const statUnits = [];
+  STAT_LECT.forEach((name,i) => {
+    statUnits.push({t:`Stat 110 lecture ${i+1}: ${name}`, d:'Watch the lecture (about 50 min). Pause and re-derive each result before Blitzstein does.', depth:'Notes in your own words; every formula re-derived once.', l:[R.stat110yt,R.stat110], tag:'stat'});
+    const ch = STAT_CH[i];
+    statUnits.push({t:`Stat 110 practice: ${name}`, d: ch ? `Strategic Practice problems on this topic from the course site, then 2 exercises from book ch. ${ch}.` : 'Work through the practice midterm from the course site, half of it in 60 minutes.', depth:'15 minutes per problem before looking at solutions. Write full solutions, not just answers.', l:[R.stat110,R.probbook], tag:'statp'});
+    if (ch && STAT_CH[i+1] !== ch) statUnits.push({t:`Book ch. ${ch} (${CH_NAMES[ch]}): end-of-chapter exercises`, d:'Do 8 exercises, prioritising those with published solutions so you can check.', depth:'Mixed difficulty; at least 2 hard ones.', l:[R.probbook], tag:'statc'});
+  });
+  const stat = queue(statUnits, k => ({t:`Stat 110 final review ${k+1}: past final exam problems, 60 minutes timed`, d:'From the course site’s practice exams. Re-solve misses on Sunday.', depth:'Exam conditions.', l:[R.stat110], tag:'statr'}));
+
+  const laUnits = [
+    {t:'Warm-up: Essence of linear algebra, videos 1–8', d:'Watch at 1.25×.', depth:'Intuition only.', l:[R.eola], tag:'lap'},
+    {t:'Warm-up: Essence of linear algebra, videos 9–16', d:'Watch at 1.25×.', depth:'Intuition only.', l:[R.eola], tag:'lap'},
+  ];
+  L1806.forEach((name,i) => {
+    laUnits.push({t:`18.06 lecture ${i+1}: ${name}`, d:'Watch the lecture; do the matching recitation video on OCW if there is one.', depth:'Reproduce every example by hand.', l:[R.yt1806,R.ocw1806], tag:'la'});
+    if ((i+1) % 3 === 0) laUnits.push({t:`18.06 problem set for lectures ${i-1}–${i+1}`, d:'From the OCW Assignments page; full attempt before checking solutions.', depth:'All problems.', l:[R.ocw1806], tag:'lap'});
+    if ([12,24,33].includes(i)) laUnits.push({t:'18.06 exam from OCW, timed (50 min)', d:'Grade it with the posted solutions; redo misses on Sunday.', depth:'Exam conditions.', l:[R.ocw1806], tag:'lap'});
+  });
+  const la = queue(laUnits, k => ({t:'18.06 review: re-do your weakest topic plus 6 exercises', d:'Pick from your exam misses.', depth:'Until you can teach it.', l:[R.ocw1806], tag:'lap'}));
+  const opt = queue(MATHOPT.map(([t,depth,l]) => ({t, d:'Work through the material with pen and paper.', depth, l, tag:'opt'})), k => ({t:'ML math review: redo one derivation you got wrong', d:'From your self-test log.', depth:'Closed book.', l:[R.mml], tag:'opt'}));
+  const green = queue(GREEN.map(([t]) => ({t:'Green Book '+t, d:'A Practical Guide to Quantitative Finance Interviews (Zhou). Do every problem in this section.', depth:'15-minute cap per problem, then read the solution. Log misses for Sunday.', l:[], tag:'green'})), null);
+  let qi = 0; const quantNext = () => { const [t,depth,l] = QUANT_P4[qi++ % QUANT_P4.length]; return {t, d:'Quant interview practice.', depth, l, tag:'quant'}; };
+  const fifty = queue(Array.from({length:19}, (_,k) => ({t:`Fifty Challenging Problems in Probability: problems ${k*3+1}–${Math.min(k*3+3,56)}`, d:'Mosteller (Dover). Attempt each fully before reading his solution.', depth:'20 minutes per problem maximum.', l:[], tag:'fifty'})), null);
+  const neet = queue(NEET, null);
+  let topicI = 0, csesI = 0, csesLeft = CSES_SECTIONS[0][1];
+  const nextCses = () => { while (csesLeft <= 0 && csesI < CSES_SECTIONS.length-1) { csesI++; csesLeft = CSES_SECTIONS[csesI][1]; } csesLeft--; return CSES_SECTIONS[csesI][0]; };
+  const papers = queue(PAPERS, null);
+  const mlf = queue(MLF, k => ['ML interview drill: answer 10 questions from the ML Interviews Book out loud', [R.mlib]]);
+  const cs = queue(CS, k => ({t:'CS review: re-implement one structure from your projects from memory', d:'Buffer pool, B+ tree node split, or an epoll loop.', l:[], tag:'csr'}));
+  const contrib = queue(CONTRIB, 'Contribution: maintain, answer issues, plan v2.');
+  const careerP1 = queue(CAREER_P1, null);
+
+  const days = [];
+  let dayIdx = 0;
+  for (let d = parseKey(START_KEY); keyOf(d) <= END_KEY; d = addDays(d,1), dayIdx++) {
+    const key = keyOf(d), dow = d.getDay(), mon = key.slice(0,7);
+    const ph = PHASES.find(p => key >= p.from && key <= p.to).id;
+    const T = [];
+    const add = (id, block, min, t, o={}) => T.push(Object.assign({id, block, min, t, req:true, l:[]}, o));
+    const isLastOfMonth = addDays(d,1).getDate() === 1;
+
+    const repro = [...REPROS].reverse().find(r => key >= r.from);
+    const rWeek = Math.min(8, Math.floor((d - parseKey(repro.from)) / 864e5 / 7));
+
+    if (dow >= 1 && dow <= 5) {
+      /* A: algorithms */
+      if (dow === 3) {
+        add('cf','Algorithms',120,'Codeforces round: live if one is scheduled this week, otherwise a virtual Div. 2',{d:'Live rounds usually start 23:35 JST; a virtual round at your own time counts. Then upsolve at least one problem you didn’t solve.', depth:'Full contest conditions, no editorial during the round.', l:[R.cf], tag:'contest'});
+      } else if (!neet.done) {
+        const n = ph === 1 ? 4 : 3, probs = [];
+        for (let k=0;k<n && !neet.done;k++) probs.push(neet.next());
+        add('neet','Algorithms',100,`NeetCode 150: ${probs.map(p=>p.name).join(', ')}`,{d:`Topic: ${[...new Set(probs.map(p=>p.cat))].join(' / ')}. Solve in C++ from a blank file.` + (probs.some(p=>p.prem)?' Problems marked premium on LeetCode are free on neetcode.io.':''), depth:'25-minute cap before a hint. Write time and space complexity. Anything that needed a hint goes on Sunday’s re-solve list.', l:[...probs.map(p => [p.name, p.prem ? 'https://neetcode.io/practice' : `https://leetcode.com/problems/${p.slug}/`]), R.neet], tag:'neet', n:probs.length});
+      } else if (dow === 1) {
+        const [tn,tu] = TOPICS[topicI++ % TOPICS.length];
+        add('topic','Algorithms',90,`Topic of the week: ${tn}`,{d:'Read the article, implement the template from memory, then solve 2 problems from its practice list.', depth:'You can rewrite the template in under 10 minutes without notes.', l:[[tn,tu],R.cph], tag:'cp'});
+      } else if (dow === 4) {
+        const sec = nextCses();
+        add('cses','Algorithms',90,`CSES ${sec}: next 3 unsolved problems in listed order`,{d:'Submit each until accepted.', depth:'30-minute cap each; read a hint only after the cap.', l:[R.cses,R.cph], tag:'cp'});
+      } else {
+        const r = CF_LADDER[mon] || 1400;
+        add('ladder','Algorithms',90,`Codeforces ladder: 3 problems rated ${r}–${r+100}`,{d:'Pick unsolved problems from the filtered problemset, highest solve count first.', depth:'40-minute cap each, then the editorial; re-solve the next day without looking.', l:[[`Problemset ${r}–${r+100}`, `https://codeforces.com/problemset?tags=${r}-${r+100}`]], tag:'cp'});
+      }
+
+      /* B: math */
+      let mu = null;
+      if (ph === 1) mu = stat.next();
+      else if (ph === 2) mu = ([1,3,5].includes(dow) || key < '2027-02-01') ? stat.next() : la.next();
+      else if (ph === 3) mu = [1,3,5].includes(dow) ? (key < '2027-07-01' ? la.next() : opt.next()) : (green.done ? quantNext() : green.next());
+      else mu = green.done ? quantNext() : green.next();
+      add('math','Math',60,mu.t,{d:mu.d, depth:mu.depth, l:mu.l, tag:mu.tag});
+      if (ph >= 3) add('zeta','Math',10,'Zetamac: 2 runs of 120 seconds, default settings',{d:'Log your best score in today’s notes.', depth:'Target 40+ by August, 50+ by October.', l:[R.zeta], tag:'zeta'});
+
+      /* C: rotating hour */
+      if (dow === 1 || dow === 4) {
+        const p = papers.next();
+        if (p) add('paper','Research',50,`Read: ${p[0]}`,{d:'Three-pass method. Write a 5-line summary in today’s notes: problem, key idea, method, result, limitation.', depth:`Passes 1 and 2 always. Pass 3 (re-derive the key equation) when it relates to ${repro.name}.`, l:[ax(p[1]),R.keshav], tag:'paper'});
+      } else if (dow === 2) {
+        add('repro1','Research',60,`${repro.name}, week ${rWeek+1} (session 1): ${repro.m[rWeek]}`,{d:`Target for this reproduction: ${repro.target}`, depth:'Code from the paper first; consult reference code only when stuck for 30+ minutes, and note it in the README.', l:[ax(repro.paper),...repro.links], tag:'repro'});
+      } else if (dow === 3) {
+        const mi = (d.getFullYear()-2026)*12 + d.getMonth() - 10;
+        const weds = []; for (let x = new Date(d.getFullYear(), d.getMonth(), 1); x.getMonth() === d.getMonth(); x = addDays(x,1)) if (x.getDay() === 3) weds.push(x.getDate());
+        const wi = weds.indexOf(d.getDate());
+        let sn, sd, step;
+        if (weds.length === 5) { step = wi; [sn, sd] = SD_STEPS[wi]; }
+        else if (wi < 3) { step = wi; [sn, sd] = SD_STEPS[wi]; }
+        else { step = 4; sn = 'Monitoring, mock and final write-up'; sd = SD_STEPS[3][1] + ' ' + SD_STEPS[4][1]; }
+        add('sd','System design',60,`ML system design: ${SD_TOPICS[Math.max(0,Math.min(11,mi))]}. ${sn}`,{d:sd, depth:'Interview depth: numbers, trade-offs, and what you’d cut first.', l:[R.chip,R.cs329s,R.sdp], tag: step === 4 ? 'sd' : 'sdw'});
+      } else if (dow === 5) {
+        if (ph === 1) {
+          const c = careerP1.next();
+          if (c) add('career','Career',60,c[0],{d:c[1], l:c[2], tag:'career'});
+        } else if (ph === 2) {
+          const sp = {'2027-01-01':'Launch day: final resume check, send the first 6 applications, ask 2 people for referrals.','2027-03-05':'Negotiation prep: research comp bands for each live process, write your walk-away number and counter script.','2027-04-02':'Offer comparison: score live offers on pay, brand, relevance to quant/AI, hours, visa. Decide what you’d accept.','2027-04-30':'Stage 1 deadline. If an offer is signed, plan your notice and onboarding. If not, write what blocked you and adjust the plan.'}[key];
+          add('career','Career',60, sp || 'Application sprint: 6 tailored applications (tiers 1–2), 2 referral asks, follow up on anything older than 10 days, update your tracker',{d:'Tailor the top third of your resume to each role.', l:[R.tokyodev,R.japandev,R.levels], tag:'career'});
+        } else if (ph === 3) {
+          const w = Math.floor((d.getDate()-1)/7);
+          const items = ['Update your resume with this month’s wins (repro results, work impact).','Reach out to 2 people at target firms (trading firms, AI labs) for a 20-minute chat.','Research global targets: Singapore, Hong Kong, London, Dubai. Note comp, tax and the visa route for each.','Publish a short write-up of this month’s reproduction progress.','Clean up your GitHub: pin the best repos, fix READMEs.'];
+          add('career','Career',60,items[w],{l:[R.levels], tag:'career'});
+        } else {
+          const t = key === '2027-09-03' ? 'Make a quant-dev version of your resume: latency, throughput, statistics, C++ and contest results at the top.' : 'Stretch sprint: 5 applications to quant-dev / ML roles at trading firms and top AI labs (any country), 2 referral asks, follow-ups.';
+          add('career','Career',60,t,{l:[R.levels], tag:'career'});
+        }
+      }
+
+      /* D: fundamentals 40 min (Mon, Tue, Thu, Fri) */
+      if (dow !== 3) {
+        if (key < '2027-02-01') {
+          const [t,l] = mlf.next();
+          add('fund','Fundamentals',40,t,{d:'Read, then explain it out loud as if in an interview. Write 3 likely follow-up questions and answer them.', depth:'Interview depth: definitions, one derivation or diagram, one real example from your work.', l, tag:'mlf'});
+        } else {
+          const u = cs.next();
+          add('fund','Fundamentals',40,u.t,{d:u.d, depth:'Understand it well enough to answer “how does this work under the hood?” in an interview.', l:u.l, tag:u.tag});
+        }
+      }
+    } else if (dow === 6) {
+      add('abc','Algorithms',130,'AtCoder Beginner Contest (Saturdays 21:00 JST), then upsolve',{d:'Do it live. Afterwards upsolve up to problem E within the week.', depth:'Full contest conditions.', l:[R.atc], tag:'contest'});
+      add('repro2','Research', ph <= 2 ? 120 : 90, `${repro.name}, week ${rWeek+1} (session 2): finish “${repro.m[rWeek]}”`,{d:'Commit, then write 3 lines in the repro log: what works, the current metric, what’s next.', depth:`Target: ${repro.target}`, l:[ax(repro.paper),...repro.links], tag:'repro'});
+      if (key >= '2027-04-03') add('contrib','Contribution',60,contrib.next(),{d:'Goal 9: one original contribution that someone else validates.', tag:'contrib'});
+    } else {
+      add('review','Review',25,'Weekly review',{d:'Re-solve every problem you needed a hint for this week. Log your Codeforces rating and hours in the Goals tab. Write next week’s one risk.', depth:'Honest numbers only.', tag:'review'});
+      if (key >= '2027-01-03') {
+        const rot = ph === 4 ? ['Quant probability mock','Coding mock','Quant probability mock','ML system design mock'] : ['Coding mock','ML system design mock','Behavioral mock','Coding mock'];
+        const wk = Math.floor((d - parseKey('2027-01-03'))/864e5/7);
+        add('mock','Interview',60,`Mock interview: ${rot[wk % 4]}`,{d:'With a peer or a paid platform. Record pass/fail in the Goals tab.', depth:'Treat it as real: camera on, timed, no notes.', l:[R.iio,R.exponent], tag:'mock'});
+      }
+      if (ph >= 3) { const f = fifty.next(); add('fifty','Math',40, f ? f.t : 'Quant: re-solve 3 problems you missed this week', {d: f ? f.d : 'From your miss log.', depth: f ? f.depth : 'Closed book.', l:[], tag: f ? 'fifty' : 'quant'}); }
+      add('rest','Rest',0,'Nothing else is required today. Rest is part of the plan.',{req:false, tag:'rest'});
+    }
+
+    if (key === '2026-12-31') add('yearend','Career',30,CAREER_P1[8][0],{d:CAREER_P1[8][1], tag:'career'});
+    if (isLastOfMonth) add('monthly','Review',30,'Monthly review: mark each goal green, yellow or red',{d:'Update every metric in the Goals tab. If several goals are red, cut depth from CS fundamentals first, then ML math. Protect algorithms, interviews and reproductions.', tag:'review'});
+    GOALS.forEach(g => g.ms.forEach(([mk, mt]) => { if (mk === key) add('cp'+g.n+'-'+mt.length,'Checkpoint',0,`Checkpoint (goal ${g.n}): ${mt}`,{req:false, tag:'checkpoint'}); }));
+
+    days.push({key, dow, ph, idx:dayIdx, todos:T});
+  }
+  return days;
+}
+
+
+/* ===== App ===== */
+const PLAN = buildPlan();
+const BY_KEY = Object.fromEntries(PLAN.map(d => [d.key, d]));
+const STORE = 'grind-progress-v1';
+const GRACE_H = 4; // work finished before 04:00 the next morning still counts as on time
+const $ = (s, el=document) => el.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmtDate = (k, opt={weekday:'long', day:'numeric', month:'long', year:'numeric'}) => parseKey(k).toLocaleDateString('en-GB', opt);
+const fmtTime = ts => new Date(ts).toLocaleString('en-GB', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
+
+let memStore = null;
+function loadState() {
+  let raw = null;
+  try { raw = localStorage.getItem(STORE); } catch (e) { raw = memStore; }
+  const base = {v:1, checks:{}, notes:{}, hours:{}, metrics:{}, metricLog:[], log:[], maxSeen:0, theme:'auto', created:Date.now()};
+  try { return raw ? Object.assign(base, JSON.parse(raw)) : base; } catch (e) { return base; }
+}
+let S = loadState();
+let tamper = false, view = 'day', selKey = null, fileHandle = null, fileStatus = 'none', lastWrite = 0;
+
+function nowTs() {
+  const t = Date.now();
+  if (t < S.maxSeen - 120000) {
+    if (!tamper) { tamper = true; S.log.push({t:S.maxSeen, type:'clock', msg:'Device clock moved backwards. Using the latest time seen instead.'}); persist(); }
+    return S.maxSeen;
+  }
+  tamper = false;
+  return t;
+}
+const todayKey = () => keyOf(new Date(nowTs()));
+const deadline = k => { const d = parseKey(k); d.setDate(d.getDate()+1); d.setHours(GRACE_H,0,0,0); return d.getTime(); };
+
+function persist() {
+  S.maxSeen = Math.max(S.maxSeen, Date.now() > S.maxSeen - 120000 ? Date.now() : 0);
+  const json = JSON.stringify(S);
+  try { localStorage.setItem(STORE, json); } catch (e) { memStore = json; }
+  scheduleFileWrite();
+}
+
+/* ----- status ----- */
+function dayStatus(day, tk = todayKey()) {
+  const req = day.todos.filter(t => t.req), c = S.checks[day.key] || {};
+  const done = req.filter(t => c[t.id]);
+  if (day.key > tk) return 'future';
+  if (req.length && done.length === req.length) return Math.max(...done.map(t => c[t.id])) < deadline(day.key) ? 'ontime' : 'late';
+  if (day.key === tk) return done.length ? 'progress' : 'open';
+  if (nowTs() < deadline(day.key)) return done.length ? 'progress' : 'open'; // still within grace
+  return done.length ? 'partial' : 'missed';
+}
+const STATUS_TXT = {ontime:'Completed on time', late:'Completed late', partial:'Partly done, missed', missed:'Missed', future:'Upcoming', open:'Open', progress:'In progress'};
+function tally() {
+  const tk = todayKey(), r = {ontime:0, late:0, partial:0, missed:0};
+  PLAN.forEach(d => { const s = dayStatus(d, tk); if (s in r) r[s]++; });
+  let streak = 0;
+  for (let i = PLAN.findIndex(d => d.key === tk); i >= 0; i--) {
+    const s = dayStatus(PLAN[i], tk);
+    if (s === 'ontime') streak++; else if (PLAN[i].key === tk && (s === 'open' || s === 'progress')) continue; else break;
+  }
+  const hours = Object.values(S.hours).reduce((a, h) => a + (+h || 0), 0);
+  return {...r, streak, hours};
+}
+
+/* ----- actions ----- */
+function toggle(dayKey, todo, checked) {
+  const tk = todayKey();
+  if (dayKey > tk) return toast('This day hasn’t started yet.');
+  S.checks[dayKey] = S.checks[dayKey] || {};
+  const t = nowTs();
+  if (checked) {
+    S.checks[dayKey][todo.id] = t;
+    const late = t >= deadline(dayKey);
+    const lateDays = late ? Math.ceil((t - deadline(dayKey)) / 864e5) || 1 : 0;
+    S.log.push({t, type:'check', day:dayKey, id:todo.id, title:todo.t, late, lateDays});
+    if (late) toast(`Logged as late (${lateDays} day${lateDays > 1 ? 's' : ''} after the deadline).`);
+  } else {
+    delete S.checks[dayKey][todo.id];
+    S.log.push({t, type:'uncheck', day:dayKey, id:todo.id, title:todo.t});
+  }
+  persist(); render();
+}
+
+/* ----- rendering ----- */
+function render() {
+  document.documentElement.dataset.theme = S.theme === 'auto' ? '' : S.theme;
+  if (S.theme === 'auto') delete document.documentElement.dataset.theme;
+  const tk = todayKey();
+  if (!selKey) selKey = BY_KEY[tk] ? tk : (tk < START_KEY ? START_KEY : END_KEY);
+  document.querySelectorAll('nav.tabs button').forEach(b => b.setAttribute('aria-current', b.dataset.v === view ? 'page' : 'false'));
+  $('#banner').innerHTML = tamper ? '<div class="banner">Your device clock is earlier than a time this tracker has already seen. Locks and lateness use the latest time seen, so changing the clock won’t unlock or back-date anything.</div>' : '';
+  const main = $('#main');
+  if (view === 'day') main.innerHTML = renderStrip(tk) + renderDay(BY_KEY[selKey], tk);
+  else if (view === 'goals') main.innerHTML = renderGoals(tk);
+  else if (view === 'log') main.innerHTML = renderLog();
+  else main.innerHTML = renderData();
+  bind();
+  const sel = $('.cell.sel'), strip = $('.strip'); if (sel && strip) strip.scrollLeft = sel.offsetLeft - strip.clientWidth / 2;
+}
+
+function renderStrip(tk) {
+  const first = parseKey(START_KEY), lead = (first.getDay() + 6) % 7; // Monday-first
+  let html = '<div class="strip" aria-label="Year at a glance"><div class="strip-inner">';
+  const cells = Array(lead).fill(null).concat(PLAN);
+  const weeks = Math.ceil(cells.length / 7);
+  let lastMonth = '';
+  for (let w = 0; w < weeks; w++) {
+    const wk = cells.slice(w*7, w*7+7);
+    const firstReal = wk.find(Boolean);
+    const m = firstReal ? firstReal.key.slice(0,7) : '';
+    const label = m && m !== lastMonth ? parseKey(firstReal.key).toLocaleDateString('en-GB', {month:'short'}) : '';
+    if (label) lastMonth = m;
+    html += `<span class="mlabel" style="grid-column:${w+1}">${label}</span>`;
+    for (let r = 0; r < 7; r++) {
+      const d = wk[r];
+      if (!d) { html += `<span class="cell blank" style="grid-column:${w+1};grid-row:${r+2}"></span>`; continue; }
+      const s = dayStatus(d, tk);
+      html += `<button class="cell ${s}${d.key === tk ? ' today' : ''}${d.key === selKey ? ' sel' : ''}" style="grid-column:${w+1};grid-row:${r+2}" data-day="${d.key}" title="${fmtDate(d.key,{weekday:'short',day:'numeric',month:'short'})}: ${STATUS_TXT[s]}" aria-label="${fmtDate(d.key)}: ${STATUS_TXT[s]}"></button>`;
+    }
+  }
+  html += '</div></div><div class="legend">' + [['ok','On time'],['late','Late'],['miss','Missed'],['future','Upcoming']].map(([c,t]) => `<span><i style="background:var(--${c})"></i>${t}</span>`).join('') +
+    '<span><i style="background:repeating-linear-gradient(45deg,var(--miss) 0 2px,var(--future) 2px 4px)"></i>Partly done</span><span><i style="background:var(--future);box-shadow:inset 0 0 0 2px var(--hl)"></i>Today</span></div>';
+  return html;
+}
+
+function renderDay(day, tk) {
+  const s = dayStatus(day, tk), c = S.checks[day.key] || {};
+  const ph = PHASES.find(p => p.id === day.ph);
+  const req = day.todos.filter(t => t.req), done = req.filter(t => c[t.id]).length;
+  const mins = req.reduce((a, t) => a + t.min, 0);
+  const locked = day.key > tk;
+  let notice = '';
+  if (locked) notice = `<div class="notice">Locked until ${fmtDate(day.key,{day:'numeric',month:'long'})}. You can read ahead, but items can only be checked off from that day.</div>`;
+  else if (day.key < tk && s !== 'ontime' && nowTs() >= deadline(day.key)) notice = `<div class="notice warn">This day has passed. Anything you check off now is logged as late, with the time you did it.</div>`;
+  const groups = [];
+  day.todos.forEach(t => { let g = groups.find(x => x.b === t.block); if (!g) groups.push(g = {b:t.block, items:[]}); g.items.push(t); });
+  const blocks = groups.map(g => `<section class="block"><h2>${esc(g.b)}<small>${g.items.reduce((a,t)=>a+t.min,0) ? g.items.reduce((a,t)=>a+t.min,0)+' min' : ''}</small></h2>` + g.items.map(t => {
+    const ts = c[t.id], late = ts && ts >= deadline(day.key);
+    return `<div class="todo${ts ? ' done' : ''}${t.tag === 'checkpoint' ? ' checkpoint' : ''}">
+      <input type="checkbox" data-todo="${t.id}" ${ts ? 'checked' : ''} ${locked ? 'disabled' : ''} aria-label="${esc(t.t)}">
+      <div><div class="tt">${esc(t.t)}${t.req ? '' : '<span class="opt">optional</span>'}${t.min ? ` <span class="opt">${t.min} min</span>` : ''}</div>
+      ${t.d ? `<div class="det">${esc(t.d)}</div>` : ''}
+      ${t.depth ? `<div class="depth"><b>Depth:</b> ${esc(t.depth)}</div>` : ''}
+      ${t.l && t.l.length ? `<div class="links">${t.l.map(([n,u]) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(n)}</a>`).join('')}</div>` : ''}
+      ${ts ? `<div class="stamp${late ? ' late' : ''}">${late ? 'Done late' : 'Done'}: ${fmtTime(ts)}</div>` : ''}</div></div>`;
+  }).join('') + '</section>').join('');
+  const T = tally();
+  const repro = [...REPROS].reverse().find(r => day.key >= r.from);
+  return `<div class="layout"><div>
+    <div class="dayhead"><div><h1>${fmtDate(day.key)}</h1>
+      <div class="meta">Day ${day.idx+1} of ${PLAN.length}, phase ${ph.id}: ${esc(ph.name)}<span class="chip ${s}">${STATUS_TXT[s]}</span></div></div>
+      <div class="navbtns"><button class="btn" data-nav="-1" aria-label="Previous day">Previous</button><button class="btn" data-nav="today">Today</button><button class="btn" data-nav="1" aria-label="Next day">Next</button></div></div>
+    ${notice}${blocks}</div>
+    <aside>
+      <div class="panel"><h3>This day</h3>
+        <div class="stats"><span>Required items</span><span>${done} / ${req.length}</span><span>Planned time</span><span>${Math.floor(mins/60)} h ${mins%60} min</span></div>
+        <div class="bar"><i style="width:${req.length ? done/req.length*100 : 0}%"></i></div>
+        <p class="muted">A day counts as on time when every required item is checked before 0${GRACE_H}:00 the next morning.</p>
+        <label>Hours actually worked<input type="number" min="0" max="16" step="0.25" id="hours" value="${esc(S.hours[day.key] ?? '')}" ${locked ? 'disabled' : ''}></label></div>
+      <div class="panel"><h3>Notes</h3><textarea id="notes" placeholder="Paper summaries, Zetamac score, what broke, what you learned." ${locked ? 'disabled' : ''}>${esc(S.notes[day.key] || '')}</textarea></div>
+      <div class="panel"><h3>So far</h3><div class="stats">
+        <span>On-time streak</span><span>${T.streak} days</span><span>On time</span><span>${T.ontime}</span><span>Late</span><span>${T.late}</span><span>Missed or partial</span><span>${T.missed + T.partial}</span><span>Hours logged</span><span>${T.hours.toFixed(1)}</span></div></div>
+      <div class="panel"><h3>Phase ${ph.id}</h3><p class="muted" style="margin:0 0 8px">${esc(ph.aim)}</p><p class="muted" style="margin:0">Reproduction: ${esc(repro.name)}. Target: ${esc(repro.target)}</p></div>
+    </aside></div>`;
+}
+
+function autoCounts() {
+  const count = tag => PLAN.reduce((a, d) => a + d.todos.filter(t => t.tag === tag && (S.checks[d.key] || {})[t.id]).length, 0);
+  const total = tag => PLAN.reduce((a, d) => a + d.todos.filter(t => t.tag === tag).length, 0);
+  return {
+    stat:['Stat 110 lectures', count('stat'), total('stat')], green:['Green Book sections', count('green'), total('green')], fifty:['Fifty Challenging sets', count('fifty'), total('fifty')],
+    la:['18.06 lectures', count('la'), total('la')], opt:['Calculus and optimization units', count('opt'), total('opt')],
+    paper:['Papers read', count('paper'), total('paper')], sd:['Designs written up', count('sd'), total('sd')], cs:['CS units', count('cs'), total('cs')],
+  };
+}
+function renderGoals(tk) {
+  const A = autoCounts();
+  return '<div style="margin-top:18px">' + GOALS.map(g => `<div class="goal"><div class="num">${g.n}</div><div>
+    <h2>${esc(g.t)}</h2><p>${esc(g.s)}</p>
+    ${g.auto ? `<div class="autos">${g.auto.map(a => `<span>${A[a][0]}: <b>${A[a][1]}</b> / ${A[a][2]}</span>`).join('')}</div>` : ''}
+    <ul class="ms">${g.ms.map(([k,t]) => `<li class="${k < tk ? 'past' : ''}"><time>${fmtDate(k,{day:'numeric',month:'short',year:'numeric'})}</time><span>${esc(t)}</span></li>`).join('')}</ul>
+    ${g.fields ? `<div class="fields">${g.fields.map(([id,lab]) => `<label>${esc(lab)}<input data-metric="${id}" value="${esc(S.metrics[id] || '')}"></label>`).join('')}</div>` : ''}
+    ${g.fields ? metricHistory(g.fields.map(f => f[0])) : ''}</div></div>`).join('') + '</div>';
+}
+function metricHistory(ids) {
+  const h = S.metricLog.filter(m => ids.includes(m.id)).slice(-4).reverse();
+  return h.length ? `<p class="muted" style="margin-top:8px">${h.map(m => `${fmtTime(m.t)}: ${esc(m.v)}`).join('<br>')}</p>` : '';
+}
+function renderLog() {
+  const rows = S.log.slice(-400).reverse().map(e => `<tr><td>${fmtTime(e.t)}</td><td>${e.type === 'check' ? (e.late ? `<span class="tag late">Late by ${e.lateDays}d</span>` : '<span class="tag ok">On time</span>') : e.type === 'uncheck' ? '<span class="tag">Unchecked</span>' : '<span class="tag warn">Clock</span>'}</td><td>${e.day ? `<a href="#" data-goto="${e.day}">${fmtDate(e.day,{day:'numeric',month:'short'})}</a>` : ''}</td><td>${esc(e.title || e.msg || '')}</td></tr>`).join('');
+  return `<div style="margin-top:18px"><h1 style="font-family:var(--serif);font-weight:400;margin:0 0 10px">Activity log</h1><p class="muted">Every check and uncheck is recorded with the time it happened. Nothing here can be edited.</p>
+    <div class="tablewrap"><table class="log"><thead><tr><th>When</th><th>Status</th><th>Day</th><th>Item</th></tr></thead><tbody>${rows || '<tr><td colspan="4">Nothing logged yet. Check off your first item on the Today view.</td></tr>'}</tbody></table></div></div>`;
+}
+function renderData() {
+  const fsOk = 'showSaveFilePicker' in window;
+  const st = {none:'No progress file linked.', linked:`Linked to ${esc(fileHandle?.name)}. Every change is written to it automatically${lastWrite ? `, last at ${fmtTime(lastWrite)}` : ''}.`, needs:`Linked to ${esc(fileHandle?.name)}, but the browser needs your permission again.`}[fileStatus];
+  return `<div class="data">
+  <section><h2>Where your progress lives</h2><p>Progress saves automatically in this browser on this device. It works offline. To keep a copy you can read, back up or move to another device, link a Markdown progress file or export one.</p></section>
+  <section><h2>Progress file</h2>${fsOk ? `<p>${st}</p><div class="row">
+    ${fileStatus === 'needs' ? '<button class="btn primary" data-act="reconnect">Reconnect progress file</button>' : ''}
+    <button class="btn" data-act="link">Create a new progress file</button><button class="btn" data-act="open">Open an existing progress file</button></div>
+    <p class="muted">The file is Markdown: a readable day-by-day log, plus a data block at the end that this page reads back.</p>` :
+    '<p>This browser can’t write to files directly (that needs Chrome or Edge on a computer). Use export and import below instead.</p>'}</section>
+  <section><h2>Export and import</h2><div class="row"><button class="btn" data-act="export">Download progress (.md)</button><label class="btn" style="cursor:pointer">Load progress from a file<input type="file" accept=".md,.json,.txt" data-act="import" hidden></label></div>
+    <p class="muted">Loading a file replaces the progress in this browser. To move between devices, export on one and load on the other, or keep the linked file in a synced folder.</p></section>
+  <section><h2>Using it on a phone</h2><p>Phones often won’t run a page opened straight from the Files app. The simplest route is to host this one file somewhere private, like GitHub Pages, open it in your phone’s browser, and move progress with export and import.</p></section>
+  <section><h2>Theme</h2><div class="row">${['auto','light','dark'].map(t => `<button class="btn${S.theme === t ? ' primary' : ''}" data-theme-set="${t}">${t === 'auto' ? 'Match device' : t[0].toUpperCase()+t.slice(1)}</button>`).join('')}</div></section>
+  <section><h2>How lateness works</h2><p>Items can only be checked from their own day onward. A day is on time when all required items are checked before 0${GRACE_H}:00 the next morning, so late contests still count. After that, checks are logged as late with the real time. If the device clock is set backwards, the tracker keeps using the latest time it has seen.</p></section>
+  <section><h2>Erase everything</h2><div class="row"><button class="btn danger" data-act="reset">Erase all progress</button></div></section></div>`;
+}
+
+/* ----- events ----- */
+function go(k) { if (BY_KEY[k]) { selKey = k; view = 'day'; location.hash = k; render(); } }
+function bind() {
+  document.querySelectorAll('[data-day]').forEach(b => b.onclick = () => go(b.dataset.day));
+  document.querySelectorAll('[data-goto]').forEach(a => a.onclick = e => { e.preventDefault(); go(a.dataset.goto); });
+  document.querySelectorAll('[data-nav]').forEach(b => b.onclick = () => {
+    if (b.dataset.nav === 'today') return go(BY_KEY[todayKey()] ? todayKey() : START_KEY);
+    const i = BY_KEY[selKey].idx + +b.dataset.nav; if (PLAN[i]) go(PLAN[i].key);
+  });
+  document.querySelectorAll('[data-todo]').forEach(cb => cb.onchange = () => toggle(selKey, BY_KEY[selKey].todos.find(t => t.id === cb.dataset.todo), cb.checked));
+  const notes = $('#notes'); if (notes) notes.oninput = debounce(() => { S.notes[selKey] = notes.value; persist(); }, 500);
+  const hours = $('#hours'); if (hours) hours.onchange = () => { S.hours[selKey] = hours.value; persist(); render(); };
+  document.querySelectorAll('[data-metric]').forEach(inp => inp.onchange = () => { S.metrics[inp.dataset.metric] = inp.value; S.metricLog.push({t:nowTs(), id:inp.dataset.metric, v:inp.value}); persist(); render(); });
+  document.querySelectorAll('[data-theme-set]').forEach(b => b.onclick = () => { S.theme = b.dataset.themeSet; persist(); render(); });
+  document.querySelectorAll('[data-act]').forEach(el => {
+    const a = el.dataset.act;
+    if (a === 'import') el.onchange = () => el.files[0] && importFile(el.files[0]);
+    else el.onclick = () => ({link:linkFile, open:openFile, reconnect:reconnect, export:exportMd, reset:resetAll})[a]();
+  });
+}
+function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2600); }
+
+/* ----- markdown file format ----- */
+function toMarkdown() {
+  const tk = todayKey(), T = tally();
+  let md = `# 12-month plan: progress log\n\nExported ${new Date(nowTs()).toLocaleString('en-GB')}\n\n`;
+  md += `On time: ${T.ontime} days. Late: ${T.late}. Missed or partial: ${T.missed + T.partial}. On-time streak: ${T.streak}. Hours logged: ${T.hours.toFixed(1)}.\n\n`;
+  md += `## Metrics\n\n` + Object.entries(S.metrics).map(([k,v]) => `- ${k}: ${v}`).join('\n') + '\n\n## Days\n';
+  PLAN.filter(d => d.key <= tk).forEach(d => {
+    const c = S.checks[d.key] || {}, s = dayStatus(d, tk);
+    md += `\n### ${d.key} (${fmtDate(d.key,{weekday:'short'})}): ${STATUS_TXT[s]}\n\n`;
+    d.todos.filter(t => t.tag !== 'rest').forEach(t => { const ts = c[t.id]; md += `- [${ts ? 'x' : ' '}] ${t.block}: ${t.t}${ts ? ` (${ts >= deadline(d.key) ? 'late, ' : ''}${fmtTime(ts)})` : ''}${t.req ? '' : ' (optional)'}\n`; });
+    if (S.hours[d.key]) md += `\nHours: ${S.hours[d.key]}\n`;
+    if (S.notes[d.key]) md += `\nNotes:\n\n${S.notes[d.key].split('\n').map(l => '> ' + l).join('\n')}\n`;
+  });
+  md += `\n<!-- grind-data\n${JSON.stringify(S)}\n-->\n`;
+  return md;
+}
+function fromText(text) {
+  const m = text.match(/<!-- grind-data\n([\s\S]*?)\n-->/);
+  const json = m ? m[1] : text.trim();
+  const data = JSON.parse(json);
+  if (!data || data.v !== 1 || !data.checks) throw new Error('not a progress file');
+  return data;
+}
+function exportMd() {
+  const blob = new Blob([toMarkdown()], {type:'text/markdown'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `grind-progress-${todayKey()}.md`; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000); toast('Progress downloaded.');
+}
+async function importFile(file) {
+  try {
+    const data = fromText(await file.text());
+    if (!confirm('Replace the progress in this browser with the progress in this file?')) return;
+    data.maxSeen = Math.max(data.maxSeen || 0, S.maxSeen); S = data; persist(); render(); toast('Progress loaded.');
+  } catch (e) { toast('That file doesn’t contain progress from this tracker.'); }
+}
+function resetAll() {
+  if (prompt('Type erase to delete all progress in this browser.') !== 'erase') return;
+  const maxSeen = S.maxSeen; S = loadState(); S.checks = {}; S.notes = {}; S.hours = {}; S.metrics = {}; S.metricLog = []; S.log = []; S.maxSeen = maxSeen;
+  persist(); render(); toast('All progress erased.');
+}
+
+/* ----- File System Access (Chrome/Edge desktop) ----- */
+const idb = () => new Promise((res, rej) => { const r = indexedDB.open('grind', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+const idbSet = async (k, v) => { const db = await idb(); return new Promise(r => { const tx = db.transaction('kv','readwrite'); tx.objectStore('kv').put(v, k); tx.oncomplete = r; }); };
+const idbGet = async k => { const db = await idb(); return new Promise(r => { const q = db.transaction('kv').objectStore('kv').get(k); q.onsuccess = () => r(q.result); q.onerror = () => r(null); }); };
+async function linkFile() {
+  try { fileHandle = await showSaveFilePicker({suggestedName:'grind-progress.md', types:[{description:'Markdown', accept:{'text/markdown':['.md']}}]});
+    await idbSet('handle', fileHandle); fileStatus = 'linked'; await writeFile(); render(); toast('Progress file linked.'); } catch (e) {}
+}
+async function openFile() {
+  try { const [h] = await showOpenFilePicker({types:[{description:'Markdown', accept:{'text/markdown':['.md']}}]});
+    const data = fromText(await (await h.getFile()).text());
+    if (!confirm('Replace the progress in this browser with the progress in this file?')) return;
+    if ((await h.requestPermission({mode:'readwrite'})) !== 'granted') return toast('Write permission is needed to keep the file updated.');
+    fileHandle = h; await idbSet('handle', h); data.maxSeen = Math.max(data.maxSeen || 0, S.maxSeen); S = data; fileStatus = 'linked'; persist(); render(); toast('Progress loaded from file.');
+  } catch (e) { if (e.name !== 'AbortError') toast('That file doesn’t contain progress from this tracker.'); }
+}
+async function reconnect() { try { if ((await fileHandle.requestPermission({mode:'readwrite'})) === 'granted') { fileStatus = 'linked'; await writeFile(); render(); toast('Progress file reconnected.'); } } catch (e) {} }
+let writeTimer;
+function scheduleFileWrite() { if (fileStatus !== 'linked') return; clearTimeout(writeTimer); writeTimer = setTimeout(writeFile, 800); }
+async function writeFile() {
+  if (!fileHandle || fileStatus !== 'linked') return;
+  try { const w = await fileHandle.createWritable(); await w.write(toMarkdown()); await w.close(); lastWrite = Date.now(); }
+  catch (e) { fileStatus = 'needs'; if (view === 'data') render(); }
+}
+async function restoreHandle() {
+  if (!('showSaveFilePicker' in window)) return;
+  try { const h = await idbGet('handle'); if (!h) return; fileHandle = h;
+    fileStatus = (await h.queryPermission({mode:'readwrite'})) === 'granted' ? 'linked' : 'needs';
+    if (fileStatus === 'needs') toast('Open the Data tab to reconnect your progress file.'); } catch (e) {}
+}
+
+/* ----- clock ----- */
+let lastDay = null;
+function tick() {
+  const t = nowTs(), d = new Date(t);
+  $('#clockT').textContent = d.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  $('#clockD').textContent = d.toLocaleDateString('en-GB', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+  const k = keyOf(d);
+  if (lastDay && k !== lastDay) { if (selKey === lastDay && BY_KEY[k]) selKey = k; render(); }
+  lastDay = k;
+  if (Date.now() > S.maxSeen + 60000) persist();
+}
+
+/* ----- boot ----- */
+document.querySelectorAll('nav.tabs button').forEach(b => b.onclick = () => { view = b.dataset.v; location.hash = view === 'day' ? (selKey || '') : view; render(); });
+document.addEventListener('keydown', e => {
+  if (view !== 'day' || /INPUT|TEXTAREA/.test(document.activeElement.tagName)) return;
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { const i = BY_KEY[selKey].idx + (e.key === 'ArrowLeft' ? -1 : 1); if (PLAN[i]) go(PLAN[i].key); }
+  if (e.key === 't') go(BY_KEY[todayKey()] ? todayKey() : START_KEY);
+});
+(function init() {
+  const h = location.hash.slice(1);
+  if (BY_KEY[h]) selKey = h; else if (['goals','log','data'].includes(h)) view = h;
+  render(); tick(); setInterval(tick, 1000); restoreHandle().then(() => view === 'data' && render());
+})();
+
+</script>
+</body>
+</html>
