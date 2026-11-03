@@ -3,7 +3,7 @@
 A tracker for a 12-month study plan, 3 November 2026 to 31 October 2027.
 One page, no backend, no build step.
 
-Live at **https://aryan-winningson.github.io/grind-tracker/**
+Live at **https://aryan-winnigson.github.io/grind-tracker/**
 
 ## Where progress is kept
 
